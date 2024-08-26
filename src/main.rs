@@ -54,7 +54,7 @@ fn real_main() -> Result<()> {
         perspective(fov, aspect),
     );
 
-    let mut debug_scene = scene.clone();
+    // let mut debug_scene = scene.clone();
 
     let scene = scene.transform(&camera.extrinsic_matrix());
     let sun = Vector3::new(1.0, 0.0, 0.5).normalize();
@@ -114,7 +114,7 @@ fn real_main() -> Result<()> {
         }
     }).collect();
 
-    save_obj("debug.obj", &debug_scene)?;
+    // save_obj("debug.obj", &debug_scene)?;
 
     write_rgb_file(
         "output.exr",
