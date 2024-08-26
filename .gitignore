@@ -1,3 +1,4 @@
 /target
 *.obj
 *.exr
+perf.*

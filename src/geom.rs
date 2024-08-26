@@ -6,33 +6,26 @@ pub struct Ray {
     pub direction: Vector3<f32>,
 }
 
-pub struct Triangle<'a> {
-    pub scene: &'a Scene,
-    pub index: usize,
+pub struct Triangle {
+    pub a: Vector3<f32>,
+    pub b: Vector3<f32>,
+    pub c: Vector3<f32>,
 }
 
-impl Triangle<'_> {
-    pub fn abc(&self) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
-        let indices = self.scene.triangles[self.index];
-
-        let a = self.scene.vertices[indices[0] as usize];
-        let b = self.scene.vertices[indices[1] as usize];
-        let c = self.scene.vertices[indices[2] as usize];
-
-        // (a, b, c)
-        (c, b, a)
-    }
-
+impl Triangle {
     pub fn normal(&self) -> Vector3<f32> {
-        let (a, b, c) = self.abc();
+        let ab = self.b - self.a;
+        let ac = self.c - self.a;
 
-        (b - a).cross(c - a).normalize()
+        ab.cross(ac).normalize()
     }
 }
 
 // from wikipedia
-fn moller_trumbore_intersection (origin: Vector3<f32>, direction: Vector3<f32>, triangle: Triangle) -> Option<f32> {
-    let (a, b, c) = triangle.abc();
+fn moller_trumbore_intersection (origin: Vector3<f32>, direction: Vector3<f32>, triangle: &Triangle) -> Option<f32> {
+    let a = triangle.a;
+    let b = triangle.b;
+    let c = triangle.c;
 
 	let e1 = b - a;
 	let e2 = c - a;
@@ -68,7 +61,7 @@ fn moller_trumbore_intersection (origin: Vector3<f32>, direction: Vector3<f32>, 
 }
 
 impl Ray {
-    pub fn intersects<'a>(&self, triangle: Triangle<'a>) -> Option<f32> {
+    pub fn intersects<'a>(&self, triangle: &Triangle) -> Option<f32> {
         moller_trumbore_intersection(self.origin, self.direction, triangle)
     }
 }
@@ -91,5 +84,24 @@ impl Scene {
             vertices,
             triangles: self.triangles.clone(),
         }
+    }
+}
+
+pub struct SimpleScene {
+    pub triangles: Vec<Triangle>,
+}
+
+impl From<Scene> for SimpleScene {
+    fn from(scene: Scene) -> Self {
+        let mut triangles = Vec::new();
+        for triangle in &scene.triangles {
+            let a = scene.vertices[triangle[0] as usize];
+            let b = scene.vertices[triangle[1] as usize];
+            let c = scene.vertices[triangle[2] as usize];
+
+            triangles.push(Triangle { a, b, c });
+        }
+
+        SimpleScene { triangles }
     }
 }
