@@ -20,7 +20,7 @@ fn main() {
 }
 
 fn real_main() -> Result<()> {
-    let scene = obj::load_obj("monkey.obj")?;
+    let scene = obj::load_obj("balls.obj")?;
 
     println!(
         "Loaded scene with {} vertices and {} triangles",
@@ -28,19 +28,23 @@ fn real_main() -> Result<()> {
         scene.triangles.len()
     );
 
-    let camera_pos = Vector3::new(0.0, -5.0, 0.0);
-    let fov = 60.0 * PI / 180.0;
+    let viewport_width = 1280;
+    let viewport_height = 720;
+    let aspect = viewport_width as f32 / viewport_height as f32;
+
+    let camera_pos = Vector3::new(10.0, 5.0, 0.0);
+    let fov = 40.0 * PI / 180.0;
+
     let mut camera = Camera::new(
         camera_pos,
         Quaternion::look_at(-camera_pos, UP),
-        // Quaternion::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Rad(PI)),
-        perspective(fov, 16.0 / 9.0),
+        perspective(fov, aspect),
     );
 
     // let mut debug_scene = scene.clone();
 
     let scene = scene.transform(&camera.extrinsic_matrix());
-    let sun = Vector3::new(-1.0, 0.0, 0.0).normalize();
+    let sun = Vector3::new(1.0, 0.0, 0.0).normalize();
 
     // let mut debug_scene = scene.clone();
 
@@ -48,15 +52,12 @@ fn real_main() -> Result<()> {
 
     println!("Starting render");
 
-    let viewport_width = 1280;
-    let viewport_height = 720;
-
     // let mut fb = vec![0.0; viewport_width * viewport_height * 3];
 
     let n_pixels = viewport_width * viewport_height;
     // for i in 0..n_pixels {
     // let fb: Vec<_> = (0..n_pixels).into_par_iter().map(|i| {
-    let fb: Vec<_> = (0..n_pixels).into_iter().map(|i| {
+    let fb: Vec<_> = (0..n_pixels).map(|i| {
         let x = i % viewport_width;
         let y = i / viewport_width;
         let pixel_idx = (y * viewport_width + x) * 3;
@@ -86,36 +87,17 @@ fn real_main() -> Result<()> {
         // let idx = debug_scene.vertices.len() as u32 - 1;
         // debug_scene.triangles.push([idx, idx, idx]);
 
-        let mut min_t = f32::INFINITY;
-        let mut hit_idx = None;
+        if let Some((_min_t, hit_idx)) = scene.intersects(&ray) {
+            let normals = &scene.normals[hit_idx];
+            let normal = (normals.a + normals.b + normals.c) / 3.0;
 
-        for (i, triangle) in scene.triangles.iter().enumerate() {
-
-            if let Some(t) = ray.intersects(triangle) {
-                if t < min_t {
-                    min_t = t;
-                    hit_idx = Some(i);
-                }
-            }
-        }
-
-        let color = if min_t.is_finite() {
-            let hit_idx = hit_idx.unwrap();
-            let triangle = &scene.triangles[hit_idx];
-
-            let normal = triangle.normal();
             let brightness = normal.dot(sun).max(0.0);
             let b = brightness;
 
             (b, b, b)
         } else {
             (0.0, 0.0, 0.0)
-        };
-
-        // fb[pixel_idx] = color.0;
-        // fb[pixel_idx + 1] = color.1;
-        // fb[pixel_idx + 2] = color.2;
-        color
+        }
     }).collect();
 
     // save_obj("debug.obj", &debug_scene)?;

@@ -13,6 +13,9 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
     let mut vertices = Vec::new();
     let mut triangles = Vec::new();
 
+    let mut normals = Vec::new();
+    let mut normal_triangles = Vec::new();
+
     for line in reader.lines() {
         let line = line?;
 
@@ -20,7 +23,7 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
             continue;
         }
 
-        let mut parts = line.split_whitespace();
+        let mut parts = line.split_terminator(' ');
         let next = parts.next();
 
         match next {
@@ -31,19 +34,34 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
 
                 vertices.push(Vector3::new(x, y, z));
             }
+            Some("vn") => {
+                let x: f32 = parts.next().unwrap().parse()?;
+                let y: f32 = parts.next().unwrap().parse()?;
+                let z: f32 = parts.next().unwrap().parse()?;
+
+                normals.push(Vector3::new(x, y, z));
+            }
             Some("f") => {
                 // if it's quad, make two triangles
                 if parts.clone().count() == 4 {
                     let mut indices = [0; 4];
+                    let mut normal_indices = [0; 4];
+
                     for i in 0..4 {
                         let part = parts.next().unwrap();
                         let mut parts = part.split('/');
 
                         let index: u32 = parts.next().unwrap().parse()?;
                         indices[i] = index - 1;
+
+                        let _ = parts.next();
+                        let normal_index: u32 = parts.next().unwrap().parse()?;
+                        normal_indices[i] = normal_index - 1;
                     }
                     triangles.push([indices[0], indices[1], indices[2]]);
                     triangles.push([indices[0], indices[2], indices[3]]);
+                    normal_triangles.push([normal_indices[0], normal_indices[1], normal_indices[2]]);
+                    normal_triangles.push([normal_indices[0], normal_indices[2], normal_indices[3]]);
                 } else {
                     let mut triangle = [0; 3];
                     for i in 0..3 {
@@ -52,6 +70,10 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
 
                         let index: u32 = parts.next().unwrap().parse()?;
                         triangle[i] = index - 1;
+
+                        let _ = parts.next();
+                        let normal_index: u32 = parts.next().unwrap().parse()?;
+                        normal_triangles.push([normal_index - 1, normal_index - 1, normal_index - 1]);
                     }
                     triangles.push(triangle);
                 }
@@ -63,6 +85,9 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
     Ok(Scene {
         vertices,
         triangles,
+
+        normals,
+        normal_triangles,
     })
 }
 

@@ -39,10 +39,6 @@ impl Camera {
         self.memoized_extrinsic.unwrap()
     }
 
-    pub fn view_matrix(&mut self) -> Matrix4<f32> {
-        self.projection * self.extrinsic_matrix()
-    }
-
     pub fn new(
         position: Vector3<f32>,
         rotation: Quaternion<f32>,
