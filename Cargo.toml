@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 cgmath = "0.18.0"
+exr = "1.72.0"
