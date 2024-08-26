@@ -43,41 +43,20 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
                 normals.push(Vector3::new(x, y, z));
             }
             Some("f") => {
-                // if it's quad, make two triangles
-                if parts.clone().count() == 4 {
-                    let mut indices = [0; 4];
-                    let mut normal_indices = [0; 4];
+                let mut triangle = [0; 3];
+                let mut normal_triangle = [0; 3];
+                for i in 0..3 {
+                    let part = parts.next().unwrap();
+                    let parts: Vec<_> = part.split('/').collect();
 
-                    for i in 0..4 {
-                        let part = parts.next().unwrap();
-                        let mut parts = part.split('/');
+                    let index: u32 = parts[0].parse()?;
+                    triangle[i] = index - 1;
 
-                        let index: u32 = parts.next().unwrap().parse()?;
-                        indices[i] = index - 1;
-
-                        let _ = parts.next();
-                        let normal_index: u32 = parts.next().unwrap().parse()?;
-                        normal_indices[i] = normal_index - 1;
-                    }
-                    triangles.push([indices[0], indices[1], indices[2]]);
-                    triangles.push([indices[0], indices[2], indices[3]]);
-                    normal_triangles.push([normal_indices[0], normal_indices[1], normal_indices[2]]);
-                    normal_triangles.push([normal_indices[0], normal_indices[2], normal_indices[3]]);
-                } else {
-                    let mut triangle = [0; 3];
-                    for i in 0..3 {
-                        let part = parts.next().unwrap();
-                        let mut parts = part.split('/');
-
-                        let index: u32 = parts.next().unwrap().parse()?;
-                        triangle[i] = index - 1;
-
-                        let _ = parts.next();
-                        let normal_index: u32 = parts.next().unwrap().parse()?;
-                        normal_triangles.push([normal_index - 1, normal_index - 1, normal_index - 1]);
-                    }
-                    triangles.push(triangle);
+                    let normal_index: u32 = parts[2].parse()?;
+                    normal_triangle[i] = normal_index - 1;
                 }
+                triangles.push(triangle);
+                normal_triangles.push(normal_triangle);
             }
             _ => {}
         }
@@ -99,13 +78,20 @@ pub fn save_obj(path: &str, scene: &Scene) -> anyhow::Result<()> {
         writeln!(file, "v {} {} {}", vertex.x, vertex.y, vertex.z)?;
     }
 
-    for triangle in &scene.triangles {
+    for normal in &scene.normals {
+        writeln!(file, "vn {} {} {}", normal.x, normal.y, normal.z)?;
+    }
+
+    for (triangle, normal_triangle) in scene.triangles.iter().zip(scene.normal_triangles.iter()) {
         writeln!(
             file,
-            "f {} {} {}",
+            "f {}//{} {}//{} {}//{}",
             triangle[0] + 1,
+            normal_triangle[0] + 1,
             triangle[1] + 1,
-            triangle[2] + 1
+            normal_triangle[1] + 1,
+            triangle[2] + 1,
+            normal_triangle[2] + 1
         )?;
     }
 
