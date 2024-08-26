@@ -1,22 +1,30 @@
 use crate::camera::Camera;
-use cgmath::{InnerSpace, Matrix4, Vector3};
+use bvh::{aabb::{self, Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
+use nalgebra::Matrix4;
 use rayon::prelude::*;
+use crate::TVec3;
 
 pub struct Ray {
-    pub origin: Vector3<f32>,
-    pub direction: Vector3<f32>,
+    pub origin: TVec3,
+    pub direction: TVec3,
 }
 
 pub struct Triangle {
-    pub a: Vector3<f32>,
-    pub b: Vector3<f32>,
-    pub c: Vector3<f32>,
+    pub a: TVec3,
+    pub b: TVec3,
+    pub c: TVec3,
+}
+
+impl Triangle {
+    pub fn new(a: TVec3, b: TVec3, c: TVec3) -> Self {
+        Triangle { a, b, c }
+    }
 }
 
 // from wikipedia
 fn moller_trumbore_intersection(
-    origin: &Vector3<f32>,
-    direction: &Vector3<f32>,
+    origin: &TVec3,
+    direction: &TVec3,
     triangle: &Triangle,
 ) -> Option<f32> {
     let a = &triangle.a;
@@ -26,8 +34,8 @@ fn moller_trumbore_intersection(
     let e1 = b - a;
     let e2 = c - a;
 
-    let ray_cross_e2 = direction.cross(e2);
-    let det = e1.dot(ray_cross_e2);
+    let ray_cross_e2 = direction.cross(&e2);
+    let det = e1.dot(&ray_cross_e2);
 
     if det > -f32::EPSILON && det < f32::EPSILON {
         return None; // This ray is parallel to this triangle.
@@ -35,18 +43,18 @@ fn moller_trumbore_intersection(
 
     let inv_det = 1.0 / det;
     let s = origin - a;
-    let u = inv_det * s.dot(ray_cross_e2);
+    let u = inv_det * s.dot(&ray_cross_e2);
     if u < 0.0 || u > 1.0 {
         return None;
     }
 
-    let s_cross_e1 = s.cross(e1);
-    let v = inv_det * direction.dot(s_cross_e1);
+    let s_cross_e1 = s.cross(&e1);
+    let v = inv_det * direction.dot(&s_cross_e1);
     if v < 0.0 || u + v > 1.0 {
         return None;
     }
     // At this stage we can compute t to find out where the intersection point is on the line.
-    let t = inv_det * e2.dot(s_cross_e1);
+    let t = inv_det * e2.dot(&s_cross_e1);
 
     if t > f32::EPSILON {
         // ray intersection
@@ -65,10 +73,10 @@ impl Ray {
 
 #[derive(Debug, Clone)]
 pub struct Scene {
-    pub vertices: Vec<Vector3<f32>>,
+    pub vertices: Vec<TVec3>,
     pub triangles: Vec<[u32; 3]>,
 
-    pub normals: Vec<Vector3<f32>>,
+    pub normals: Vec<TVec3>,
     pub normal_triangles: Vec<[u32; 3]>,
 
     // materials: Vec<Material>,
@@ -78,7 +86,7 @@ impl Scene {
     pub fn transform(&self, matrix: &Matrix4<f32>) -> Scene {
         let mut vertices = Vec::new();
         for vertex in &self.vertices {
-            vertices.push((matrix * vertex.extend(1.0)).truncate());
+            vertices.push(matrix.transform_vector(vertex));
         }
 
         Scene {
@@ -105,14 +113,14 @@ impl From<Scene> for SimpleScene {
             let a = scene.vertices[triangle[0] as usize];
             let b = scene.vertices[triangle[1] as usize];
             let c = scene.vertices[triangle[2] as usize];
-            triangles.push(Triangle { a, b, c });
+            triangles.push(Triangle::new(a, b, c));
         }
 
         for normal_triangle in &scene.normal_triangles {
             let a = scene.normals[normal_triangle[0] as usize];
             let b = scene.normals[normal_triangle[1] as usize];
             let c = scene.normals[normal_triangle[2] as usize];
-            normals.push(Triangle { a, b, c });
+            normals.push(Triangle::new(a, b, c));
         }
 
         SimpleScene { triangles, normals }
@@ -135,13 +143,4 @@ impl SimpleScene {
 
         hit_idx.map(|idx| (min_t, idx))
     }
-
-    // rayon version
-    // pub fn intersects(&self, ray: &Ray) -> Option<(f32, usize)> {
-    //     let it = self.triangles.par_iter().enumerate().filter_map(|(i, triangle)| {
-    //         ray.intersects(triangle).map(|t| (t, i))
-    //     });
-
-    //     it.min_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
-    // }
 }

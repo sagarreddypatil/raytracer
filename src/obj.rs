@@ -1,8 +1,9 @@
-use cgmath::Vector3;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Write},
 };
+
+use nalgebra::Vector3;
 
 use crate::geom::Scene;
 

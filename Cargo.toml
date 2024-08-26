@@ -5,8 +5,9 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.86"
-cgmath = "0.18.0"
+bvh = "0.10.0"
 exr = "1.72.0"
+nalgebra = "0.33.0"
 rayon = "1.10.0"
 
 [profile.dev]

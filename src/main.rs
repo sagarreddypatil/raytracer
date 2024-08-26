@@ -6,12 +6,14 @@ use std::f32::consts::PI;
 
 use anyhow::Result;
 use camera::{perspective, Camera, UP};
-use cgmath::{InnerSpace, Quaternion, Rad, Rotation, Rotation3, SquareMatrix, Vector3};
 use exr::prelude::*;
-use geom::{Ray, Scene, SimpleScene, Triangle};
+use geom::{Ray, Scene, SimpleScene, BVHTriangle};
+use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use obj::save_obj;
 
 use rayon::prelude::*;
+
+pub type TVec3 = Vector3<f32>;
 
 fn main() {
     if let Err(e) = real_main() {
@@ -33,11 +35,12 @@ fn real_main() -> Result<()> {
     let aspect = viewport_width as f32 / viewport_height as f32;
 
     let camera_pos = Vector3::new(10.0, 5.0, 0.0);
+    let camera_dir = UnitQuaternion::look_at_rh(&-camera_pos, &UP);
     let fov = 40.0 * PI / 180.0;
 
     let mut camera = Camera::new(
         camera_pos,
-        Quaternion::look_at(-camera_pos, UP),
+        camera_dir,
         perspective(fov, aspect),
     );
 
@@ -56,8 +59,8 @@ fn real_main() -> Result<()> {
 
     let n_pixels = viewport_width * viewport_height;
     // for i in 0..n_pixels {
-    // let fb: Vec<_> = (0..n_pixels).into_par_iter().map(|i| {
-    let fb: Vec<_> = (0..n_pixels).map(|i| {
+    let fb: Vec<_> = (0..n_pixels).into_par_iter().map(|i| {
+    // let fb: Vec<_> = (0..n_pixels).map(|i| {
         let x = i % viewport_width;
         let y = i / viewport_width;
         let pixel_idx = (y * viewport_width + x) * 3;
@@ -73,10 +76,10 @@ fn real_main() -> Result<()> {
         let ndc_z = 1.0;
 
         let ndc_point = Vector3::new(ndc_x, ndc_y, ndc_z);
-        let inverse_proj = camera.projection.invert().unwrap();
+        let inverse_proj = camera.projection.try_inverse().unwrap();
 
-        let camera_space_point = inverse_proj * ndc_point.extend(1.0);
-        let ray_dir = camera_space_point.truncate().normalize();
+        let camera_space_point = inverse_proj.transform_vector(&ndc_point);
+        let ray_dir = camera_space_point.normalize();
 
         let ray = Ray {
             origin: Vector3::new(0.0, 0.0, 0.0),
@@ -91,7 +94,7 @@ fn real_main() -> Result<()> {
             let normals = &scene.normals[hit_idx];
             let normal = (normals.a + normals.b + normals.c) / 3.0;
 
-            let brightness = normal.dot(sun).max(0.0);
+            let brightness = normal.dot(&sun).max(0.0);
             let b = brightness;
 
             (b, b, b)

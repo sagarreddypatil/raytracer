@@ -1,14 +1,15 @@
-use cgmath::{Matrix4, Quaternion, Vector3};
+use nalgebra::{Matrix4, UnitQuaternion, Vector3};
+use crate::TVec3;
 
-pub const UP: Vector3<f32> = Vector3::new(0.0, 0.0, 1.0);
+pub const UP: TVec3 = Vector3::new(0.0, 0.0, 1.0);
 
 pub struct Camera {
-    pub position: Vector3<f32>,
-    pub rotation: Quaternion<f32>,
+    pub position: TVec3,
+    pub rotation: UnitQuaternion<f32>,
 
     pub projection: Matrix4<f32>,
 
-    memoized_pos_rot: Option<(Vector3<f32>, Quaternion<f32>)>,
+    memoized_pos_rot: Option<(TVec3, UnitQuaternion<f32>)>,
     memoized_extrinsic: Option<Matrix4<f32>>,
 }
 
@@ -33,15 +34,15 @@ impl Camera {
     pub fn extrinsic_matrix(&mut self) -> Matrix4<f32> {
         if Some((self.position, self.rotation)) != self.memoized_pos_rot {
             self.memoized_pos_rot = Some((self.position, self.rotation));
-            self.memoized_extrinsic = Some(Matrix4::from(self.rotation) * Matrix4::from_translation(-self.position));
+            self.memoized_extrinsic = Some(Matrix4::from(self.rotation) * Matrix4::new_translation(&-self.position));
         }
 
         self.memoized_extrinsic.unwrap()
     }
 
     pub fn new(
-        position: Vector3<f32>,
-        rotation: Quaternion<f32>,
+        position: TVec3,
+        rotation: UnitQuaternion<f32>,
         projection: Matrix4<f32>,
     ) -> Self {
         Self {
