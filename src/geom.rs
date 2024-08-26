@@ -86,7 +86,8 @@ impl Scene {
     pub fn transform(&self, matrix: &Matrix4<f32>) -> Scene {
         let mut vertices = Vec::new();
         for vertex in &self.vertices {
-            vertices.push(matrix.transform_vector(vertex));
+            let vertex = nalgebra::Vector4::new(vertex.x, vertex.y, vertex.z, 1.0);
+            vertices.push((matrix * vertex).xyz());
         }
 
         Scene {

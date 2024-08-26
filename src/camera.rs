@@ -34,7 +34,8 @@ impl Camera {
     pub fn extrinsic_matrix(&mut self) -> Matrix4<f32> {
         if Some((self.position, self.rotation)) != self.memoized_pos_rot {
             self.memoized_pos_rot = Some((self.position, self.rotation));
-            self.memoized_extrinsic = Some(Matrix4::from(self.rotation) * Matrix4::new_translation(&-self.position));
+            let rotation_matrix = Matrix4::from(self.rotation.to_rotation_matrix());
+            self.memoized_extrinsic = Some(rotation_matrix * Matrix4::new_translation(&-self.position));
         }
 
         self.memoized_extrinsic.unwrap()
