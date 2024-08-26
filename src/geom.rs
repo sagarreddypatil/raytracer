@@ -1,13 +1,8 @@
-use crate::camera::Camera;
-use bvh::{aabb::{self, Aabb, Bounded}, bounding_hierarchy::{BHShape, BoundingHierarchy}, bvh::Bvh};
-use nalgebra::Matrix4;
-use rayon::prelude::*;
 use crate::TVec3;
+use nalgebra::{Matrix4, Point3};
+use bvh::ray::Ray;
 
-pub struct Ray {
-    pub origin: TVec3,
-    pub direction: TVec3,
-}
+pub type TRay = Ray<f32, 3>;
 
 pub struct Triangle {
     pub a: TVec3,
@@ -21,56 +16,6 @@ impl Triangle {
     }
 }
 
-// from wikipedia
-fn moller_trumbore_intersection(
-    origin: &TVec3,
-    direction: &TVec3,
-    triangle: &Triangle,
-) -> Option<f32> {
-    let a = &triangle.a;
-    let b = &triangle.b;
-    let c = &triangle.c;
-
-    let e1 = b - a;
-    let e2 = c - a;
-
-    let ray_cross_e2 = direction.cross(&e2);
-    let det = e1.dot(&ray_cross_e2);
-
-    if det > -f32::EPSILON && det < f32::EPSILON {
-        return None; // This ray is parallel to this triangle.
-    }
-
-    let inv_det = 1.0 / det;
-    let s = origin - a;
-    let u = inv_det * s.dot(&ray_cross_e2);
-    if u < 0.0 || u > 1.0 {
-        return None;
-    }
-
-    let s_cross_e1 = s.cross(&e1);
-    let v = inv_det * direction.dot(&s_cross_e1);
-    if v < 0.0 || u + v > 1.0 {
-        return None;
-    }
-    // At this stage we can compute t to find out where the intersection point is on the line.
-    let t = inv_det * e2.dot(&s_cross_e1);
-
-    if t > f32::EPSILON {
-        // ray intersection
-        return Some(t);
-    } else {
-        // This means that there is a line intersection but not a ray intersection.
-        return None;
-    }
-}
-
-impl Ray {
-    pub fn intersects<'a>(&self, triangle: &Triangle) -> Option<f32> {
-        moller_trumbore_intersection(&self.origin, &self.direction, triangle)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Scene {
     pub vertices: Vec<TVec3>,
@@ -78,7 +23,6 @@ pub struct Scene {
 
     pub normals: Vec<TVec3>,
     pub normal_triangles: Vec<[u32; 3]>,
-
     // materials: Vec<Material>,
 }
 
@@ -100,12 +44,82 @@ impl Scene {
     }
 }
 
-pub struct SimpleScene {
-    pub triangles: Vec<Triangle>,
+use bvh::aabb::{Aabb, Bounded};
+use bvh::bounding_hierarchy::BHShape;
+use bvh::bvh::Bvh;
+
+#[derive(Debug, Clone)]
+pub struct BVHTriangle {
+    a: Point3<f32>,
+    b: Point3<f32>,
+    c: Point3<f32>,
+
+    aabb: Aabb<f32, 3>,
+    node_index: usize,
+
+    pub arr_index: usize,
+}
+
+impl PartialEq for BVHTriangle {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a && self.b == other.b && self.c == other.c
+    }
+}
+
+impl BVHTriangle {
+    pub fn new(a: TVec3, b: TVec3, c: TVec3) -> Self {
+        let a: Point3<f32> = a.into();
+        let b: Point3<f32> = b.into();
+        let c: Point3<f32> = c.into();
+
+        let min_bound = Point3::new(
+            a.x.min(b.x).min(c.x),
+            a.y.min(b.y).min(c.y),
+            a.z.min(b.z).min(c.z),
+        );
+
+        let max_bound = Point3::new(
+            a.x.max(b.x).max(c.x),
+            a.y.max(b.y).max(c.y),
+            a.z.max(b.z).max(c.z),
+        );
+
+        let aabb = Aabb::with_bounds(min_bound, max_bound);
+
+        Self {
+            a,
+            b,
+            c,
+            aabb,
+            node_index: 0,
+            arr_index: 0,
+        }
+    }
+}
+
+impl Bounded<f32, 3> for BVHTriangle {
+    fn aabb(&self) -> Aabb<f32, 3> {
+        self.aabb
+    }
+}
+
+impl BHShape<f32, 3> for BVHTriangle {
+    fn set_bh_node_index(&mut self, index: usize) {
+        self.node_index = index;
+    }
+
+    fn bh_node_index(&self) -> usize {
+        self.node_index
+    }
+}
+
+pub struct BVHScene {
+    bvh: Bvh<f32, 3>,
+    pub triangles: Vec<BVHTriangle>,
     pub normals: Vec<Triangle>,
 }
 
-impl From<Scene> for SimpleScene {
+impl From<Scene> for BVHScene {
     fn from(scene: Scene) -> Self {
         let mut triangles = Vec::new();
         let mut normals = Vec::new();
@@ -114,7 +128,9 @@ impl From<Scene> for SimpleScene {
             let a = scene.vertices[triangle[0] as usize];
             let b = scene.vertices[triangle[1] as usize];
             let c = scene.vertices[triangle[2] as usize];
-            triangles.push(Triangle::new(a, b, c));
+            let mut tri = BVHTriangle::new(a, b, c);
+            tri.arr_index = triangles.len();
+            triangles.push(tri);
         }
 
         for normal_triangle in &scene.normal_triangles {
@@ -124,21 +140,30 @@ impl From<Scene> for SimpleScene {
             normals.push(Triangle::new(a, b, c));
         }
 
-        SimpleScene { triangles, normals }
+        let bvh = Bvh::build(&mut triangles);
+        BVHScene {
+            bvh,
+            triangles,
+            normals,
+        }
     }
 }
 
-impl SimpleScene {
-    pub fn intersects(&self, ray: &Ray) -> Option<(f32, usize)> {
+impl BVHScene {
+    pub fn intersects(&self, ray: &TRay) -> Option<(f32, usize)> {
+        // let ray: Ray = ray.clone();
+        // let ray = ray.into();
+        let hits = self.bvh.traverse(&ray, &self.triangles);
         let mut min_t = f32::INFINITY;
         let mut hit_idx = None;
 
-        for (i, triangle) in self.triangles.iter().enumerate() {
-            if let Some(t) = ray.intersects(triangle) {
-                if t < min_t {
-                    min_t = t;
-                    hit_idx = Some(i);
-                }
+        for triangle in hits.into_iter() {
+            let intersection = ray.intersects_triangle(&triangle.a, &triangle.b, &triangle.c);
+            if intersection.distance.is_finite() && intersection.distance < min_t {
+                min_t = intersection.distance;
+
+                let i = triangle.arr_index;
+                hit_idx = Some(i);
             }
         }
 

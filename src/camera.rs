@@ -1,58 +1,48 @@
-use nalgebra::{Matrix4, UnitQuaternion, Vector3};
 use crate::TVec3;
+use nalgebra::{Matrix4, UnitQuaternion, Vector3};
 
 pub const UP: TVec3 = Vector3::new(0.0, 0.0, 1.0);
-
-pub struct Camera {
-    pub position: TVec3,
-    pub rotation: UnitQuaternion<f32>,
-
-    pub projection: Matrix4<f32>,
-
-    memoized_pos_rot: Option<(TVec3, UnitQuaternion<f32>)>,
-    memoized_extrinsic: Option<Matrix4<f32>>,
-}
 
 /// Make a perspective projection matrix.
 /// * `fov` - Field of view in radians
 /// * `aspect` - Aspect ratio
 pub fn perspective(fov: f32, aspect: f32) -> Matrix4<f32> {
-    let S = 1.0 / (fov / 2.0).tan();
+    let focal_length = 1.0 / (fov / 2.0).tan();
 
     #[rustfmt::skip]
     let out = Matrix4::new(
-        S / aspect, 0.0,  0.0, 0.0,
-        0.0,        S,    0.0, 0.0,
-        0.0,        0.0,  1.0, 1.0,
-        0.0,        0.0, -1.0, 0.0,
+        focal_length / aspect, 0.0,          0.0, 0.0,
+        0.0,                   focal_length, 0.0, 0.0,
+        0.0,                   0.0,          1.0, 1.0,
+        0.0,                   0.0,         -1.0, 0.0,
     );
 
     out
 }
 
+pub struct Camera {
+    projection: Matrix4<f32>,
+    inv_projection: Matrix4<f32>,
+    extrinsic: Matrix4<f32>,
+}
+
 impl Camera {
     pub fn extrinsic_matrix(&mut self) -> Matrix4<f32> {
-        if Some((self.position, self.rotation)) != self.memoized_pos_rot {
-            self.memoized_pos_rot = Some((self.position, self.rotation));
-            let rotation_matrix = Matrix4::from(self.rotation.to_rotation_matrix());
-            self.memoized_extrinsic = Some(rotation_matrix * Matrix4::new_translation(&-self.position));
-        }
-
-        self.memoized_extrinsic.unwrap()
+        self.extrinsic
     }
 
-    pub fn new(
-        position: TVec3,
-        rotation: UnitQuaternion<f32>,
-        projection: Matrix4<f32>,
-    ) -> Self {
-        Self {
-            position,
-            rotation,
-            projection,
+    pub fn inverse_projection_matrix(&mut self) -> Matrix4<f32> {
+        self.inv_projection
+    }
 
-            memoized_pos_rot: None,
-            memoized_extrinsic: None,
+    pub fn new(position: TVec3, rotation: UnitQuaternion<f32>, projection: Matrix4<f32>) -> Self {
+        let extrinsic =
+            Matrix4::from(rotation.to_rotation_matrix()) * Matrix4::new_translation(&-position);
+
+        Self {
+            projection,
+            inv_projection: projection.try_inverse().unwrap(),
+            extrinsic,
         }
     }
 }
