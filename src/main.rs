@@ -44,9 +44,9 @@ fn real_main() -> Result<()> {
     let viewport_height = 720;
     let aspect = viewport_width as f32 / viewport_height as f32;
 
-    let camera_pos = Vector3::new(3.0, -3.0, 3.0);
+    let camera_pos = Vector3::new(2.0, -3.0, 2.0);
     let camera_dir = UnitQuaternion::look_at_rh(&-camera_pos, &UP);
-    let fov = 40.0 * PI / 180.0;
+    let fov = 80.0 * PI / 180.0;
 
     let mut camera = Camera::new(
         camera_pos,
@@ -57,7 +57,7 @@ fn real_main() -> Result<()> {
     // let mut debug_scene = scene.clone();
 
     let scene = scene.transform(&camera.extrinsic_matrix());
-    let sun = Vector3::new(1.0, -1.5, 0.5).normalize();
+    let sun = Vector3::new(1.0, 0.0, 0.5).normalize();
 
     // let mut debug_scene = scene.clone();
 
