@@ -21,25 +21,31 @@ pub fn perspective(fov: f32, aspect: f32) -> Matrix4<f32> {
 }
 
 pub struct Camera {
+    pub width: usize,
+    pub height: usize,
+
     projection: Matrix4<f32>,
     inv_projection: Matrix4<f32>,
     extrinsic: Matrix4<f32>,
 }
 
 impl Camera {
-    pub fn extrinsic_matrix(&mut self) -> Matrix4<f32> {
+    pub fn extrinsic_matrix(&self) -> Matrix4<f32> {
         self.extrinsic
     }
 
-    pub fn inverse_projection_matrix(&mut self) -> Matrix4<f32> {
+    pub fn inverse_projection_matrix(&self) -> Matrix4<f32> {
         self.inv_projection
     }
 
-    pub fn new(position: TVec3, rotation: UnitQuaternion<f32>, projection: Matrix4<f32>) -> Self {
+    pub fn new(width: usize, height: usize, position: TVec3, rotation: UnitQuaternion<f32>, projection: Matrix4<f32>) -> Self {
         let extrinsic =
             Matrix4::from(rotation.to_rotation_matrix()) * Matrix4::new_translation(&-position);
 
         Self {
+            width,
+            height,
+
             projection,
             inv_projection: projection.try_inverse().unwrap(),
             extrinsic,

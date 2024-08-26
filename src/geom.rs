@@ -60,12 +60,6 @@ pub struct BVHTriangle {
     pub arr_index: usize,
 }
 
-impl PartialEq for BVHTriangle {
-    fn eq(&self, other: &Self) -> bool {
-        self.a == other.a && self.b == other.b && self.c == other.c
-    }
-}
-
 impl BVHTriangle {
     pub fn new(a: TVec3, b: TVec3, c: TVec3) -> Self {
         let a: Point3<f32> = a.into();
@@ -151,8 +145,6 @@ impl From<Scene> for BVHScene {
 
 impl BVHScene {
     pub fn intersects(&self, ray: &TRay) -> Option<(f32, usize)> {
-        // let ray: Ray = ray.clone();
-        // let ray = ray.into();
         let hits = self.bvh.traverse(&ray, &self.triangles);
         let mut min_t = f32::INFINITY;
         let mut hit_idx = None;

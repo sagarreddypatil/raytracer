@@ -1,6 +1,7 @@
 mod camera;
 mod geom;
 mod obj;
+mod render;
 
 use std::f32::consts::PI;
 
@@ -22,7 +23,7 @@ fn main() {
 }
 
 fn real_main() -> Result<()> {
-    let scene = obj::load_obj("detailed-monkey.obj")?;
+    let scene = obj::load_obj("balls.obj")?;
     // let scene = Scene {
     //     vertices: vec![
     //         Vector3::new(-1.0, 0.0, -1.0),
@@ -48,7 +49,13 @@ fn real_main() -> Result<()> {
     let camera_dir = UnitQuaternion::look_at_rh(&-camera_pos, &UP);
     let fov = 80.0 * PI / 180.0;
 
-    let mut camera = Camera::new(camera_pos, camera_dir, perspective(fov, aspect));
+    let mut camera = Camera::new(
+        viewport_width,
+        viewport_height,
+        camera_pos,
+        camera_dir,
+        perspective(fov, aspect),
+    );
 
     // let mut debug_scene = scene.clone();
 
@@ -62,47 +69,7 @@ fn real_main() -> Result<()> {
     println!("Starting render");
 
     let n_pixels = viewport_width * viewport_height;
-    // let fb: Vec<_> = (0..n_pixels).into_par_iter().map(|i| {
-    let fb: Vec<_> = (0..n_pixels)
-        .map(|i| {
-            let x = i % viewport_width;
-            let y = i / viewport_width;
-
-            let x = x as f32;
-            let y = y as f32;
-
-            let viewport_width = viewport_width as f32;
-            let viewport_height = viewport_height as f32;
-
-            let ndc_x = (2.0 * x) / viewport_width - 1.0;
-            let ndc_y = 1.0 - (2.0 * y) / viewport_height;
-            let ndc_z = 1.0;
-
-            let ndc_point = Vector4::new(ndc_x, ndc_y, ndc_z, 1.0);
-            let inverse_proj = camera.inverse_projection_matrix();
-
-            let camera_space_point = inverse_proj * &ndc_point;
-            let ray_dir = (camera_space_point / camera_space_point.w).xyz();
-
-            let ray = TRay::new(Point3::new(0.0, 0.0, 0.0), ray_dir);
-
-            // debug_scene.vertices.push(ray.direction);
-            // let idx = debug_scene.vertices.len() as u32 - 1;
-            // debug_scene.triangles.push([idx, idx, idx]);
-
-            if let Some((_min_t, hit_idx)) = scene.intersects(&ray) {
-                let normals = &scene.normals[hit_idx];
-                let normal = (normals.a + normals.b + normals.c) / 3.0;
-
-                let brightness = normal.dot(&sun).max(0.0);
-                let b = brightness;
-
-                (b, b, b)
-            } else {
-                (0.0, 0.0, 0.0)
-            }
-        })
-        .collect();
+    let fb = render::sample(&scene, &camera, sun);
 
     // save_obj("debug.obj", &debug_scene)?;
 
@@ -111,8 +78,9 @@ fn real_main() -> Result<()> {
         viewport_width as usize,
         viewport_height as usize,
         |x, y| {
-            let idx = (y * viewport_width + x);
-            fb[idx]
+            let idx = y * viewport_width + x;
+            let (r, g, b, a) = fb[idx];
+            (r, g, b)
         },
     )?;
 
