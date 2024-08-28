@@ -1,58 +1,74 @@
-use crate::TVec3;
-use nalgebra::{Matrix4, Point3};
-use bvh::ray::Ray;
-
-pub type TRay = Ray<f32, 3>;
-
-pub struct Triangle {
-    pub a: TVec3,
-    pub b: TVec3,
-    pub c: TVec3,
-}
-
-impl Triangle {
-    pub fn new(a: TVec3, b: TVec3, c: TVec3) -> Self {
-        Triangle { a, b, c }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Scene {
-    pub vertices: Vec<TVec3>,
-    pub triangles: Vec<[u32; 3]>,
-
-    pub normals: Vec<TVec3>,
-    pub normal_triangles: Vec<[u32; 3]>,
-    // materials: Vec<Material>,
-}
-
-impl Scene {
-    pub fn transform(&self, matrix: &Matrix4<f32>) -> Scene {
-        let mut vertices = Vec::new();
-        for vertex in &self.vertices {
-            let vertex = nalgebra::Vector4::new(vertex.x, vertex.y, vertex.z, 1.0);
-            vertices.push((matrix * vertex).xyz());
-        }
-
-        Scene {
-            vertices,
-            triangles: self.triangles.clone(),
-
-            normals: self.normals.clone(),
-            normal_triangles: self.normal_triangles.clone(),
-        }
-    }
-}
+use nalgebra::Point3;
 
 use bvh::aabb::{Aabb, Bounded};
 use bvh::bounding_hierarchy::BHShape;
 use bvh::bvh::Bvh;
 
+use crate::{Affine, Matrix4d, Matrix4f, Point3d, Point3f, Quaternion, Ray, Vector3d, Vector3f};
+
+pub struct Object {
+    pub transform: Transform,
+    pub mesh: Mesh,
+}
+
+pub struct Mesh {
+    pub vertices: Vec<Point3f>,
+    pub normals: Vec<Vector3f>,
+
+    pub triangles: Vec<[u32; 3]>,
+    pub normal_triangles: Vec<[u32; 3]>,
+}
+
+pub struct Transform {
+    pub position: Point3d,
+    pub rotation: Quaternion,
+    pub scale: Vector3d,
+
+    pub matrix: Affine,
+    pub inv_matrix: Affine,
+
+    pub matrix_f: Matrix4f,
+    pub inv_matrix_f: Matrix4f,
+}
+
+impl Transform {
+    pub fn identity() -> Self {
+        Self::new(
+            Point3d::origin(),
+            Quaternion::identity(),
+            Vector3d::new(1.0, 1.0, 1.0),
+        )
+    }
+
+    pub fn new(position: Point3d, rotation: Quaternion, scale: Vector3d) -> Self {
+        let m_scale = Affine::from_matrix_unchecked(Matrix4d::new_nonuniform_scaling(&scale));
+        let m_rotation = Affine::from_matrix_unchecked(Matrix4d::from(rotation));
+        let m_translation =
+            Affine::from_matrix_unchecked(Matrix4d::new_translation(&position.coords));
+
+        let matrix = m_translation * m_rotation * m_scale;
+        let inv_matrix = matrix.inverse();
+        let matrix_f = matrix.to_homogeneous().cast();
+        let inv_matrix_f = inv_matrix.to_homogeneous().cast();
+
+        Self {
+            position,
+            rotation,
+            scale,
+
+            matrix,
+            inv_matrix,
+            matrix_f,
+            inv_matrix_f,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct BVHTriangle {
-    a: Point3<f32>,
-    b: Point3<f32>,
-    c: Point3<f32>,
+    a: Point3f,
+    b: Point3f,
+    c: Point3f,
 
     aabb: Aabb<f32, 3>,
     node_index: usize,
@@ -61,11 +77,7 @@ pub struct BVHTriangle {
 }
 
 impl BVHTriangle {
-    pub fn new(a: TVec3, b: TVec3, c: TVec3) -> Self {
-        let a: Point3<f32> = a.into();
-        let b: Point3<f32> = b.into();
-        let c: Point3<f32> = c.into();
-
+    pub fn new(a: Point3f, b: Point3f, c: Point3f) -> Self {
         let min_bound = Point3::new(
             a.x.min(b.x).min(c.x),
             a.y.min(b.y).min(c.y),
@@ -107,44 +119,27 @@ impl BHShape<f32, 3> for BVHTriangle {
     }
 }
 
-pub struct BVHScene {
+pub struct BvhScene {
     bvh: Bvh<f32, 3>,
     pub triangles: Vec<BVHTriangle>,
-    pub normals: Vec<Triangle>,
+    pub normals: Vec<(Vector3f, Vector3f, Vector3f)>,
 }
 
-impl From<Scene> for BVHScene {
-    fn from(scene: Scene) -> Self {
-        let mut triangles = Vec::new();
-        let mut normals = Vec::new();
-
-        for triangle in &scene.triangles {
-            let a = scene.vertices[triangle[0] as usize];
-            let b = scene.vertices[triangle[1] as usize];
-            let c = scene.vertices[triangle[2] as usize];
-            let mut tri = BVHTriangle::new(a, b, c);
-            tri.arr_index = triangles.len();
-            triangles.push(tri);
-        }
-
-        for normal_triangle in &scene.normal_triangles {
-            let a = scene.normals[normal_triangle[0] as usize];
-            let b = scene.normals[normal_triangle[1] as usize];
-            let c = scene.normals[normal_triangle[2] as usize];
-            normals.push(Triangle::new(a, b, c));
-        }
-
+impl BvhScene {
+    pub fn new(
+        mut triangles: Vec<BVHTriangle>,
+        normals: Vec<(Vector3f, Vector3f, Vector3f)>,
+    ) -> Self {
         let bvh = Bvh::build(&mut triangles);
-        BVHScene {
+
+        Self {
             bvh,
             triangles,
             normals,
         }
     }
-}
 
-impl BVHScene {
-    pub fn intersects(&self, ray: &TRay) -> Option<(f32, usize)> {
+    pub fn intersects(&self, ray: &Ray) -> Option<(f32, usize)> {
         let hits = self.bvh.traverse(&ray, &self.triangles);
         let mut min_t = f32::INFINITY;
         let mut hit_idx = None;

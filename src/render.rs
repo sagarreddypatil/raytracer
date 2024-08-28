@@ -1,42 +1,13 @@
 use nalgebra::{DMatrix, Point3, Vector4};
 
-use crate::{
-    camera::Camera,
-    geom::{BVHScene, TRay},
-    texture::{equirectangular, Texture},
-    TVec3,
-};
+use crate::scene::Scene;
+
+use crate::{Point3f, Ray, Vector2f, Vector3f};
 
 use rayon::prelude::*;
 
-fn simulate_ray(ray: TRay, camera: &Camera, scene: &BVHScene, hdri: &DMatrix<f32>) -> f32 {
-    if let Some((dist, tri_idx)) = scene.intersects(&ray) {
-        let tri = &scene.triangles[tri_idx];
-        let sun = camera.vector_world_to_camera(TVec3::new(1.0, 0.0, 1.0).normalize());
-
-        let tri_normals = &scene.normals[tri_idx];
-        let normal = (tri_normals.a + tri_normals.b + tri_normals.c) / 3.0;
-
-        let brightness = normal.dot(&sun);
-        if brightness > 0.0 {
-            brightness
-        } else {
-            0.0
-        }
-    } else {
-        let extrinsic_inv = camera.inverse_extrinsic_matrix();
-        let extrinsic_inv_rot = extrinsic_inv.fixed_view::<3, 3>(0, 0);
-
-        let hdri_world = extrinsic_inv_rot * ray.direction;
-
-        let hdri_uv = equirectangular(hdri_world);
-        let val = hdri.sample_nearest(hdri_uv);
-
-        val
-    }
-}
-
-pub fn sample(scene: &BVHScene, camera: &Camera, hdri: &DMatrix<f32>) -> DMatrix<f32> {
+pub fn sample_once(scene: &Scene) -> DMatrix<f32> {
+    let camera = &scene.camera;
     let n_pixels = camera.width * camera.height;
 
     let viewport_width = camera.width as f32;
@@ -58,14 +29,16 @@ pub fn sample(scene: &BVHScene, camera: &Camera, hdri: &DMatrix<f32>) -> DMatrix
         let ndc_y = 1.0 - (2.0 * y) / viewport_height;
         let ndc_z = 1.0;
 
-        let ndc_point = Vector4::new(ndc_x, ndc_y, ndc_z, 1.0);
-        let inverse_proj = camera.inverse_projection_matrix();
+        let ndc_point = Point3f::new(ndc_x, ndc_y, ndc_z);
+        let inverse_proj = camera.inv_projection;
 
-        let camera_space_point = inverse_proj * &ndc_point;
-        let ray_dir = camera_space_point.xyz();
-        let ray = TRay::new(Point3::new(0.0, 0.0, 0.0), ray_dir);
+        let camera_space_point = inverse_proj.transform_point(&ndc_point);
+        let ray_dir = camera_space_point.coords;
 
-        let b = simulate_ray(ray, camera, scene, hdri);
+        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), ray_dir);
+
+        // let b = simulate_ray(ray, camera, scene, hdri);
+        let b = scene.sample(&ray, 1);
         b
     }).collect();
 

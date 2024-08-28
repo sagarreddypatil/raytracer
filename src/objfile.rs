@@ -3,11 +3,12 @@ use std::{
     io::{BufRead, BufReader, Write},
 };
 
-use nalgebra::Vector3;
+use crate::geom::{Mesh, Object, Transform};
+use nalgebra::{Point3, Vector3};
 
-use crate::geom::Scene;
+// use crate::geom::Scene;
 
-pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
+pub fn load_obj(path: &str) -> anyhow::Result<Object> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
 
@@ -33,7 +34,7 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
                 let y: f32 = parts.next().unwrap().parse()?;
                 let z: f32 = parts.next().unwrap().parse()?;
 
-                vertices.push(Vector3::new(x, y, z));
+                vertices.push(Point3::new(x, y, z));
             }
             Some("vn") => {
                 let x: f32 = parts.next().unwrap().parse()?;
@@ -62,27 +63,30 @@ pub fn load_obj(path: &str) -> anyhow::Result<Scene> {
         }
     }
 
-    Ok(Scene {
-        vertices,
-        triangles,
-
-        normals,
-        normal_triangles,
+    Ok(Object {
+        transform: Transform::identity(),
+        mesh: Mesh {
+            vertices,
+            triangles,
+            normals,
+            normal_triangles,
+        },
     })
 }
 
-pub fn save_obj(path: &str, scene: &Scene) -> anyhow::Result<()> {
+pub fn save_obj(path: &str, object: &Object) -> anyhow::Result<()> {
     let mut file = File::create(path)?;
+    let mesh = &object.mesh;
 
-    for vertex in &scene.vertices {
+    for vertex in &mesh.vertices {
         writeln!(file, "v {} {} {}", vertex.x, vertex.y, vertex.z)?;
     }
 
-    for normal in &scene.normals {
+    for normal in &mesh.normals {
         writeln!(file, "vn {} {} {}", normal.x, normal.y, normal.z)?;
     }
 
-    for (triangle, normal_triangle) in scene.triangles.iter().zip(scene.normal_triangles.iter()) {
+    for (triangle, normal_triangle) in mesh.triangles.iter().zip(mesh.normal_triangles.iter()) {
         writeln!(
             file,
             "f {}//{} {}//{} {}//{}",

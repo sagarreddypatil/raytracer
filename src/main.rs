@@ -1,22 +1,21 @@
+mod types;
+mod scene;
 mod texture;
 mod camera;
 mod geom;
-mod obj;
+mod objfile;
 mod render;
+
+use scene::Scene;
+use types::*;
 
 use std::f32::consts::PI;
 
 use anyhow::Result;
 use camera::{perspective, Camera, UP};
 use exr::prelude::*;
-use geom::{BVHScene, TRay};
+use geom::{BvhScene, Transform};
 use nalgebra::{DMatrix, Matrix, Point3, UnitQuaternion, Vector2, Vector3, Vector4};
-use obj::save_obj;
-
-use rayon::prelude::*;
-
-pub type TVec3 = Vector3<f32>;
-pub type TVec2 = Vector2<f32>;
 
 fn main() {
     if let Err(e) = real_main() {
@@ -25,12 +24,12 @@ fn main() {
 }
 
 fn real_main() -> Result<()> {
-    let scene = obj::load_obj("detailed-monkey.obj")?;
+    let object = objfile::load_obj("detailed-monkey.obj")?;
 
     println!(
-        "Loaded scene with {} vertices and {} triangles",
-        scene.vertices.len(),
-        scene.triangles.len()
+        "Loaded object with {} vertices and {} triangles",
+        object.mesh.vertices.len(),
+        object.mesh.triangles.len()
     );
 
     let hdri = exr::image::read::read()
@@ -76,33 +75,23 @@ fn real_main() -> Result<()> {
     let viewport_height = 1080;
     let aspect = viewport_width as f32 / viewport_height as f32;
 
-    let camera_pos = Vector3::new(0.0, -5.0, 0.0);
-    let camera_dir = UnitQuaternion::look_at_rh(&-camera_pos, &UP);
+    let camera_pos = Point3::new(0.0, -5.0, 0.0);
+    let camera_dir = Quaternion::look_at_rh(&-camera_pos.coords, &UP);
     let fov = 120.0 * PI / 180.0;
 
     let camera = Camera::new(
         viewport_width,
         viewport_height,
-        camera_pos,
-        camera_dir,
+        Transform::new(camera_pos, camera_dir, Vector3::new(1.0, 1.0, 1.0)),
         perspective(fov, aspect),
     );
 
-    let scene = scene.transform(&camera.extrinsic_matrix());
-    let scene: BVHScene = scene.into();
+    let mut scene = Scene::new(camera, vec![object], hdri_gray);
 
     println!("Starting render");
+    scene.build_bvh();
 
-    let mut count = 0;
-    let mut total = render::sample(&scene, &camera, &hdri_gray);
-    for _ in 0..1 {
-        let fb = render::sample(&scene, &camera, &hdri_gray);
-        total += fb;
-        count += 1;
-    }
-
-    // let fb = total / count as f32;
-    let fb = total;
+    let fb = render::sample_once(&scene);
 
     write_rgb_file(
         "output.exr",
