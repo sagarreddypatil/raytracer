@@ -1,21 +1,21 @@
-mod types;
-mod scene;
-mod texture;
 mod camera;
 mod geom;
 mod objfile;
 mod render;
+mod scene;
+mod texture;
+mod types;
 
 use scene::Scene;
 use types::*;
 
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 
 use anyhow::Result;
 use camera::{perspective, Camera, UP};
 use exr::prelude::*;
-use geom::{BvhScene, Transform};
-use nalgebra::{DMatrix, Matrix, Point3, UnitQuaternion, Vector2, Vector3, Vector4};
+use geom::Transform;
+use nalgebra::{DMatrix, Point3, Vector3};
 
 fn main() {
     if let Err(e) = real_main() {
@@ -23,8 +23,24 @@ fn main() {
     }
 }
 
+fn rad(deg: f64) -> f64 {
+    deg * PI / 180.0
+}
+
+fn camera_transform(pos: Point3d) -> Transform {
+    let look_at = -pos.coords;
+
+    Transform::new(
+        pos,
+        Quaternion::look_at_rh(&look_at, &UP),
+        // Quaternion::from_euler_angles(0.0, rad(45.0), 0.0),
+        Vector3::new(1.0, 1.0, 1.0),
+    )
+}
+
 fn real_main() -> Result<()> {
     let object = objfile::load_obj("detailed-monkey.obj")?;
+    println!("{:?}", object);
 
     println!(
         "Loaded object with {} vertices and {} triangles",
@@ -75,33 +91,48 @@ fn real_main() -> Result<()> {
     let viewport_height = 1080;
     let aspect = viewport_width as f32 / viewport_height as f32;
 
-    let camera_pos = Point3::new(0.0, -5.0, 0.0);
-    let camera_dir = Quaternion::look_at_rh(&-camera_pos.coords, &UP);
     let fov = 120.0 * PI / 180.0;
 
     let camera = Camera::new(
         viewport_width,
         viewport_height,
-        Transform::new(camera_pos, camera_dir, Vector3::new(1.0, 1.0, 1.0)),
-        perspective(fov, aspect),
+        camera_transform(Point3d::new(0.0, -2.0, 5.0)),
+        perspective(fov as f32, aspect),
     );
 
     let mut scene = Scene::new(camera, vec![object], hdri_gray);
 
     println!("Starting render");
-    scene.build_bvh();
 
-    let fb = render::sample_once(&scene);
+    for i in 1..41 {
+        let wow = i as f64;
+        let wow = (wow / 4.0) - 5.0 + 1e-4;
+        let camera_transform = camera_transform(Point3d::new(0.0, wow, 2.0));
+        scene.camera.transform = camera_transform;
 
-    write_rgb_file(
-        "output.exr",
-        viewport_width as usize,
-        viewport_height as usize,
-        |x, y| {
-            let b = fb[(x, y)];
-            (b, b, b)
-        },
-    )?;
+        scene.build_bvh();
+        let fb = render::sample_once(&scene);
+
+        write_rgb_file(
+            &format!("output_{}.exr", i),
+            viewport_width,
+            viewport_height,
+            |x, y| {
+                let b = fb[(x, y)];
+                (b, b, b)
+            },
+        )?;
+    }
+
+    // write_rgb_file(
+    //     "output.exr",
+    //     viewport_width as usize,
+    //     viewport_height as usize,
+    //     |x, y| {
+    //         let b = fb[(x, y)];
+    //         (b, b, b)
+    //     },
+    // )?;
 
     Ok(())
 }

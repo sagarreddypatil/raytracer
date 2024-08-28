@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use nalgebra::Point3;
 
 use bvh::aabb::{Aabb, Bounded};
@@ -9,6 +11,14 @@ use crate::{Affine, Matrix4d, Matrix4f, Point3d, Point3f, Quaternion, Ray, Vecto
 pub struct Object {
     pub transform: Transform,
     pub mesh: Mesh,
+}
+
+impl Debug for Object {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Object")
+            .field("transform", &self.transform)
+            .finish()
+    }
 }
 
 pub struct Mesh {
@@ -31,6 +41,16 @@ pub struct Transform {
     pub inv_matrix_f: Matrix4f,
 }
 
+impl Debug for Transform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Transform")
+            .field("position", &self.position)
+            .field("rotation", &self.rotation)
+            .field("scale", &self.scale)
+            .finish()
+    }
+}
+
 impl Transform {
     pub fn identity() -> Self {
         Self::new(
@@ -46,10 +66,12 @@ impl Transform {
         let m_translation =
             Affine::from_matrix_unchecked(Matrix4d::new_translation(&position.coords));
 
-        let matrix = m_translation * m_rotation * m_scale;
+        // let matrix = m_translation * m_scale * m_rotation;
+        let matrix = m_translation * m_rotation;
         let inv_matrix = matrix.inverse();
-        let matrix_f = matrix.to_homogeneous().cast();
-        let inv_matrix_f = inv_matrix.to_homogeneous().cast();
+
+        let matrix_f = matrix.matrix().cast();
+        let inv_matrix_f = inv_matrix.matrix().cast();
 
         Self {
             position,

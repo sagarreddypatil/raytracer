@@ -1,5 +1,5 @@
-use std::f32::consts::PI;
 use nalgebra::DMatrix;
+use std::f32::consts::PI;
 
 use crate::{Vector2f, Vector3f};
 

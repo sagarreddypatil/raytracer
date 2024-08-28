@@ -1,9 +1,9 @@
-use nalgebra::DMatrix;
+use nalgebra::{DMatrix, Vector4};
 
 use crate::camera::Camera;
 use crate::geom::{BVHTriangle, BvhScene, Object};
 use crate::texture::{equirectangular, Texture};
-use crate::{Matrix4f, Ray, Vector3f};
+use crate::{Matrix4f, Point3d, Ray, Vector2f, Vector3d, Vector3f};
 
 pub struct Scene {
     pub camera: Camera,
@@ -24,16 +24,20 @@ impl Scene {
     }
 
     fn sample_env(&self, ray: &Ray) -> f32 {
+        // let rot_inv = self.camera.transform.rotation.inverse().cast();
+        // let ray_world = rot_inv * ray.direction;
+
         let ray_world = self
             .camera
             .transform
-            .inv_matrix_f
+            .matrix_f
             .transform_vector(&ray.direction);
 
         let hdri_uv = equirectangular(ray_world);
         let val = self.env_map.sample_nearest(hdri_uv);
 
         val
+        // ray_world.z
     }
 
     pub fn sample(&self, ray: &Ray, max_bounces: u32) -> f32 {
@@ -71,7 +75,7 @@ impl Scene {
     }
 
     fn bvh(&self) -> BvhScene {
-        let world_to_camera = self.camera.transform.matrix.inverse();
+        let world_to_camera = self.camera.transform.inv_matrix;
 
         let mut triangles = Vec::new();
         let mut normals = Vec::new();
@@ -80,27 +84,23 @@ impl Scene {
             let object_to_world = object.transform.matrix;
             let object_to_camera = world_to_camera * object_to_world;
 
+            // This casting business is done because
+            // we want to allow for potentially large objects
+            // so we cast the vertices to f64 before transforming
+            // and then cast them back to f32
+            let transform_vertex = |i: u32| {
+                let vertex = &object.mesh.vertices[i as usize];
+                let vertex = vertex.cast();
+
+                let vertex = object_to_camera.transform_point(&vertex);
+
+                vertex.cast()
+            };
+
             for triangle in &object.mesh.triangles {
-                // This casting business is done because
-                // we want to allow for potentially large objects
-                // so we cast the vertices to f64 before transforming
-                // and then cast them back to f32
-
-                let a = &object.mesh.vertices[triangle[0] as usize];
-                let b = &object.mesh.vertices[triangle[1] as usize];
-                let c = &object.mesh.vertices[triangle[2] as usize];
-
-                let a = a.cast();
-                let b = b.cast();
-                let c = c.cast();
-
-                let a = object_to_camera.transform_point(&a);
-                let b = object_to_camera.transform_point(&b);
-                let c = object_to_camera.transform_point(&c);
-
-                let a = a.cast();
-                let b = b.cast();
-                let c = c.cast();
+                let a = transform_vertex(triangle[0]);
+                let b = transform_vertex(triangle[1]);
+                let c = transform_vertex(triangle[2]);
 
                 let mut tri = BVHTriangle::new(a, b, c);
                 tri.arr_index = triangles.len();

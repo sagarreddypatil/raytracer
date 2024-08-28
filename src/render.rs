@@ -1,8 +1,8 @@
-use nalgebra::{DMatrix, Point3, Vector4};
+use nalgebra::{DMatrix, Point3};
 
 use crate::scene::Scene;
 
-use crate::{Point3f, Ray, Vector2f, Vector3f};
+use crate::{Point3f, Ray};
 
 use rayon::prelude::*;
 
@@ -30,14 +30,16 @@ pub fn sample_once(scene: &Scene) -> DMatrix<f32> {
         let ndc_z = 1.0;
 
         let ndc_point = Point3f::new(ndc_x, ndc_y, ndc_z);
-        let inverse_proj = camera.inv_projection;
 
-        let camera_space_point = inverse_proj.transform_point(&ndc_point);
+        let camera_space_point = camera.inv_projection.transform_point(&ndc_point);
         let ray_dir = camera_space_point.coords;
+
+        let wow = camera.transform.inv_matrix_f;
+        let ray_dir = wow.transform_vector(&ray_dir).normalize();
+        let ray_dir = wow.transform_vector(&ray_dir).normalize();
 
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), ray_dir);
 
-        // let b = simulate_ray(ray, camera, scene, hdri);
         let b = scene.sample(&ray, 1);
         b
     }).collect();

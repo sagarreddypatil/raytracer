@@ -1,5 +1,3 @@
-use nalgebra::Projective3;
-
 use crate::{geom::Transform, Matrix4f, Projective, Vector3d};
 
 pub const UP: Vector3d = Vector3d::new(0.0, 0.0, 1.0);
