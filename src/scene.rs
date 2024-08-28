@@ -49,22 +49,23 @@ impl Scene {
         }
 
         if let Some((dist, tri_idx)) = bvh.intersects(ray) {
-            let sun = self
-                .camera
-                .transform
-                .inv_matrix_f
-                .transform_vector(&Vector3f::new(1.0, 0.0, 1.0))
-                .normalize();
+            let new_origin = ray.origin + ray.direction * dist;
+
+            let tri = &bvh.triangles[tri_idx];
+            let (alpha, beta) = tri.barycentric(new_origin);
 
             let tri_normals = &bvh.normals[tri_idx];
-            let normal = (tri_normals.0 + tri_normals.1 + tri_normals.2) / 3.0;
+            // let normal = (tri_normals.0 + tri_normals.1 + tri_normals.2) / 3.0;
+            let normal = tri_normals.0 * (1.0 - alpha - beta)
+                + tri_normals.1 * alpha
+                + tri_normals.2 * beta;
 
-            let brightness = normal.dot(&sun);
-            if brightness > 0.0 {
-                brightness
-            } else {
-                0.0
-            }
+            // specular reflection
+            let new_dir = ray.direction - 2.0 * ray.direction.dot(&normal) * normal;
+            let new_ray = Ray::new(new_origin, new_dir);
+
+            let brightness = self.sample(&new_ray, max_bounces - 1);
+            brightness
         } else {
             self.sample_env(ray)
         }
@@ -85,9 +86,10 @@ impl Scene {
             let object_to_camera = world_to_camera * object_to_world;
 
             // This casting business is done because
-            // we want to allow for potentially large objects
+            // we want to allow for potentially large objects (such as your mom)
             // so we cast the vertices to f64 before transforming
             // and then cast them back to f32
+
             let transform_vertex = |i: u32| {
                 let vertex = &object.mesh.vertices[i as usize];
                 let vertex = vertex.cast();

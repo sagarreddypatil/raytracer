@@ -19,11 +19,11 @@ fn bound_uv(uv: Vector2f) -> Vector2f {
     assert!(uv.x >= 0.0 && uv.x <= 1.0);
     assert!(uv.y >= 0.0 && uv.y <= 1.0);
 
-    // let x = uv.x.min(1.0).max(0.0);
-    // let y = uv.y.min(1.0).max(0.0);
-
     let x = uv.x;
     let y = uv.y;
+
+    // let x = uv.x.min(1.0).max(0.0);
+    // let y = uv.y.min(1.0).max(0.0);
 
     Vector2f::new(x, y)
 }

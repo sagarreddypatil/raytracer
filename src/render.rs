@@ -35,12 +35,12 @@ pub fn sample_once(scene: &Scene) -> DMatrix<f32> {
         let ray_dir = camera_space_point.coords;
 
         let wow = camera.transform.inv_matrix_f;
-        let ray_dir = wow.transform_vector(&ray_dir).normalize();
-        let ray_dir = wow.transform_vector(&ray_dir).normalize();
+        let ray_dir = wow.transform_vector(&ray_dir);
+        let ray_dir = wow.transform_vector(&ray_dir);
 
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), ray_dir);
 
-        let b = scene.sample(&ray, 1);
+        let b = scene.sample(&ray, 8);
         b
     }).collect();
 

@@ -66,8 +66,7 @@ impl Transform {
         let m_translation =
             Affine::from_matrix_unchecked(Matrix4d::new_translation(&position.coords));
 
-        // let matrix = m_translation * m_scale * m_rotation;
-        let matrix = m_translation * m_rotation;
+        let matrix = m_translation * m_scale * m_rotation;
         let inv_matrix = matrix.inverse();
 
         let matrix_f = matrix.matrix().cast();
@@ -122,6 +121,24 @@ impl BVHTriangle {
             node_index: 0,
             arr_index: 0,
         }
+    }
+
+    pub fn barycentric(&self, point: Point3f) -> (f32, f32) {
+        let v0 = self.b - self.a;
+        let v1 = self.c - self.a;
+        let v2 = point - self.a;
+
+        let d00 = v0.dot(&v0);
+        let d01 = v0.dot(&v1);
+        let d11 = v1.dot(&v1);
+        let d20 = v2.dot(&v0);
+        let d21 = v2.dot(&v1);
+
+        let denom = d00 * d11 - d01 * d01;
+        let beta = (d11 * d20 - d01 * d21) / denom;
+        let gamma = (d00 * d21 - d01 * d20) / denom;
+
+        (beta, gamma)
     }
 }
 
