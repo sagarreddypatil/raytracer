@@ -24,14 +24,27 @@ pub struct Camera {
     pub width: usize,
     pub height: usize,
 
+    position: TVec3,
+    rotation: UnitQuaternion<f32>,
+
     projection: Matrix4<f32>,
     inv_projection: Matrix4<f32>,
+
     extrinsic: Matrix4<f32>,
+    inv_extrinsic: Matrix4<f32>,
 }
 
 impl Camera {
     pub fn extrinsic_matrix(&self) -> Matrix4<f32> {
         self.extrinsic
+    }
+
+    pub fn inverse_extrinsic_matrix(&self) -> Matrix4<f32> {
+        self.inv_extrinsic
+    }
+
+    pub fn projection_matrix(&self) -> Matrix4<f32> {
+        self.projection
     }
 
     pub fn inverse_projection_matrix(&self) -> Matrix4<f32> {
@@ -46,9 +59,18 @@ impl Camera {
             width,
             height,
 
+            position,
+            rotation,
+
             projection,
             inv_projection: projection.try_inverse().unwrap(),
+
             extrinsic,
+            inv_extrinsic: extrinsic.try_inverse().unwrap(),
         }
+    }
+
+    pub fn vector_world_to_camera(&self, vec: TVec3) -> TVec3 {
+        self.rotation.inverse() * vec
     }
 }
