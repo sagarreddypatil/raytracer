@@ -3,7 +3,7 @@ use std::hash::RandomState;
 use nalgebra::{DMatrix, Vector4};
 
 use crate::camera::Camera;
-use crate::geom::{BVHTriangle, BvhScene, Object};
+use crate::geom::{normalize, BVHTriangle, BvhScene, Object};
 use crate::rng::{rand_direction, rand_f32};
 use crate::texture::{equirectangular, Texture};
 use crate::{Matrix4f, Point3d, Ray, Vector2f, Vector3d, Vector3f};
@@ -33,8 +33,8 @@ impl Scene {
             .matrix_f
             .transform_vector(&ray.direction);
 
-        let hdri_uv = equirectangular(ray_world);
-        let val = self.env_map.sample_nearest(hdri_uv);
+        // let hdri_uv = equirectangular(ray_world);
+        // let val = self.env_map.sample_nearest(hdri_uv);
 
         ray_world.y
     }
@@ -63,8 +63,13 @@ impl Scene {
             // let new_ray = Ray::new(new_origin, new_dir);
 
             // diffuse reflection
-            let dir = normal + rand_direction();
-            let ray = Ray::new(new_origin, dir);
+            let dir = normalize(normal + rand_direction());
+            // let ray = Ray::new(new_origin, dir);
+            let ray = Ray {
+                origin: new_origin,
+                direction: dir,
+                inv_direction: Vector3f::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z),
+            };
 
             self.sample(&ray, max_bounces - 1)
         } else {

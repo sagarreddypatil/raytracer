@@ -59,40 +59,43 @@ fn real_main() -> Result<()> {
         object.mesh.triangles.len()
     );
 
-    let hdri = exr::image::read::read()
-        .no_deep_data()
-        .largest_resolution_level()
-        .all_channels()
-        .all_layers()
-        .all_attributes()
-        .on_progress(|_| {})
-        .from_file("hdri.exr")?;
+    // let hdri = exr::image::read::read()
+    //     .no_deep_data()
+    //     .largest_resolution_level()
+    //     .all_channels()
+    //     .all_layers()
+    //     .all_attributes()
+    //     .on_progress(|_| {})
+    //     .from_file("hdri.exr")?;
 
-    let hdri_layers = hdri.layer_data;
-    let hdri = &hdri_layers[0];
+    // let hdri_layers = hdri.layer_data;
+    // let hdri = &hdri_layers[0];
 
-    let hdri_width = hdri.size.x();
-    let hdri_height = hdri.size.y();
+    // let hdri_width = hdri.size.x();
+    // let hdri_height = hdri.size.y();
 
-    let hdri_channel = |name: &str| {
-        hdri.channel_data
-            .list
-            .iter()
-            .filter(|c| c.name == *name)
-            .next()
-            .unwrap()
-    };
+    // let hdri_channel = |name: &str| {
+    //     hdri.channel_data
+    //         .list
+    //         .iter()
+    //         .filter(|c| c.name == *name)
+    //         .next()
+    //         .unwrap()
+    // };
 
-    let hdri_r = hdri_channel("R").sample_data.values_as_f32();
-    let hdri_g = hdri_channel("G").sample_data.values_as_f32();
-    let hdri_b = hdri_channel("B").sample_data.values_as_f32();
+    // let hdri_r = hdri_channel("R").sample_data.values_as_f32();
+    // let hdri_g = hdri_channel("G").sample_data.values_as_f32();
+    // let hdri_b = hdri_channel("B").sample_data.values_as_f32();
 
-    let gray = hdri_r
-        .zip(hdri_g)
-        .zip(hdri_b)
-        .map(|((r, g), b)| 0.2126 * r + 0.7152 * g + 0.0722 * b);
+    // let gray = hdri_r
+    //     .zip(hdri_g)
+    //     .zip(hdri_b)
+    //     .map(|((r, g), b)| 0.2126 * r + 0.7152 * g + 0.0722 * b);
 
-    let hdri_gray = DMatrix::from_iterator(hdri_width, hdri_height, gray);
+    // let hdri_gray = DMatrix::from_iterator(hdri_width, hdri_height, gray);
+    let hdri_width = 2048;
+    let hdri_height = 1024;
+    let hdri_gray = DMatrix::zeros(2048, 1024);
 
     println!("Loaded HDRI with resolution {}x{}", hdri_width, hdri_height);
 
@@ -114,25 +117,26 @@ fn real_main() -> Result<()> {
     println!("Starting render");
 
     scene.build_bvh();
-    let samples = 64;
+    let samples = 2;
     let bar = ProgressBar::new(samples as u64);
 
     let mut fb: DMatrix<_> = DMatrix::zeros(viewport_width, viewport_height);
     for i in (0..samples).progress_with(bar) {
         fb += render::sample_once(&scene);
 
-        write_rgb_file(
-            // "output.exr",
-            &format!("output{:04}.exr", i),
-            viewport_width as usize,
-            viewport_height as usize,
-            |x, y| {
-                let b = fb[(x, y)];
-                let b = b / (i + 1) as f32;
-                (b, b, b)
-            },
-        )?;
     }
+
+    // write_rgb_file(
+    //     // "output.exr",
+    //     &format!("output.exr"),
+    //     viewport_width as usize,
+    //     viewport_height as usize,
+    //     |x, y| {
+    //         let b = fb[(x, y)];
+    //         let b = b / samples as f32;
+    //         (b, b, b)
+    //     },
+    // )?;
 
     Ok(())
 }

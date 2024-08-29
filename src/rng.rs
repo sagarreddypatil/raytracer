@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::Vector3f;
+use crate::{geom::normalize, Vector3f};
 
 static mut SEED: u32 = 0;
 
@@ -28,7 +28,8 @@ pub fn rand_direction() -> Vector3f {
     let y = rand_norm_f32();
     let z = rand_norm_f32();
 
-    Vector3f::new(x, y, z).normalize()
+    // Vector3f::new(x, y, z).normalize()
+    normalize(Vector3f::new(x, y, z))
 }
 
 // const MIN: i32 = -2147483648;
