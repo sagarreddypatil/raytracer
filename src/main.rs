@@ -10,16 +10,14 @@ mod types;
 
 use indicatif::{ProgressBar, ProgressIterator};
 use scene::Scene;
-use tonemapping::tonemap;
 use types::*;
 
-use std::{f64::consts::PI, path::Path};
+use std::{f64::consts::PI};
 
 use anyhow::Result;
 use camera::{perspective, Camera, UP};
-use exr::prelude::*;
 use geom::Transform;
-use nalgebra::{DMatrix, Point3, Vector3};
+use nalgebra::{DMatrix, Vector3};
 
 use rayon::prelude::*;
 

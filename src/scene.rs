@@ -1,12 +1,10 @@
-use std::hash::RandomState;
 
-use nalgebra::{DMatrix, Vector4};
+use nalgebra::{DMatrix};
 
 use crate::camera::Camera;
 use crate::geom::{normalize, BVHTriangle, BvhScene, Object};
-use crate::rng::{rand_direction, rand_f32};
-use crate::texture::{equirectangular, Texture};
-use crate::{Matrix4f, Point3d, Ray, Vector2f, Vector3d, Vector3f};
+use crate::rng::{rand_direction};
+use crate::{Matrix4f, Ray, Vector3f};
 
 pub struct Scene {
     pub camera: Camera,
