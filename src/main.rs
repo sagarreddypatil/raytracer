@@ -12,7 +12,7 @@ use indicatif::{ProgressBar, ProgressIterator};
 use scene::Scene;
 use types::*;
 
-use std::f64::consts::PI;
+use std::{f64::consts::PI, time::Instant};
 
 use anyhow::Result;
 use camera::{perspective, Camera, UP};
@@ -113,13 +113,23 @@ fn real_main() -> Result<()> {
     println!("Starting render");
 
     scene.build_bvh();
-    let samples = 2;
+    let samples = 4;
     let bar = ProgressBar::new(samples as u64);
 
     let mut fb: DMatrix<_> = DMatrix::zeros(viewport_width, viewport_height);
+    let mut sample_times = Vec::with_capacity(samples as usize);
+
     for _ in (0..samples).progress_with(bar) {
+        let time_start = Instant::now();
         fb += render::sample_once(&scene);
+
+        let elapsed = time_start.elapsed();
+        sample_times.push(elapsed);
     }
+
+    // use last 8 samples to estimate time
+    let time_per_sample = sample_times.iter().rev().take(8).sum::<std::time::Duration>() / 8;
+    println!("Time per sample: {:?}", time_per_sample);
 
     // write_rgb_file(
     //     // "output.exr",
