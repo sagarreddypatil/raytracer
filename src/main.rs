@@ -12,14 +12,12 @@ use indicatif::{ProgressBar, ProgressIterator};
 use scene::Scene;
 use types::*;
 
-use std::{f64::consts::PI};
+use std::f64::consts::PI;
 
 use anyhow::Result;
 use camera::{perspective, Camera, UP};
 use geom::Transform;
 use nalgebra::{DMatrix, Vector3};
-
-use rayon::prelude::*;
 
 fn main() {
     if let Err(e) = real_main() {
@@ -119,9 +117,8 @@ fn real_main() -> Result<()> {
     let bar = ProgressBar::new(samples as u64);
 
     let mut fb: DMatrix<_> = DMatrix::zeros(viewport_width, viewport_height);
-    for i in (0..samples).progress_with(bar) {
+    for _ in (0..samples).progress_with(bar) {
         fb += render::sample_once(&scene);
-
     }
 
     // write_rgb_file(

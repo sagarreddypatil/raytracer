@@ -1,9 +1,8 @@
-
-use nalgebra::{DMatrix};
+use nalgebra::DMatrix;
 
 use crate::camera::Camera;
 use crate::geom::{normalize, BVHTriangle, BvhScene, Object};
-use crate::rng::{rand_direction};
+use crate::rng::rand_direction;
 use crate::{Matrix4f, Ray, Vector3f};
 
 pub struct Scene {
@@ -52,9 +51,8 @@ impl Scene {
             let (alpha, beta) = tri.barycentric(new_origin);
 
             let tri_normals = &bvh.normals[tri_idx];
-            let normal = tri_normals.0 * (1.0 - alpha - beta)
-                + tri_normals.1 * alpha
-                + tri_normals.2 * beta;
+            let normal =
+                tri_normals.0 * (1.0 - alpha - beta) + tri_normals.1 * alpha + tri_normals.2 * beta;
 
             // specular reflection
             // let new_dir = ray.direction - 2.0 * ray.direction.dot(&normal) * normal;
