@@ -1,7 +1,10 @@
+use std::hash::RandomState;
+
 use nalgebra::{DMatrix, Vector4};
 
 use crate::camera::Camera;
 use crate::geom::{BVHTriangle, BvhScene, Object};
+use crate::rng::{rand_direction, rand_f32};
 use crate::texture::{equirectangular, Texture};
 use crate::{Matrix4f, Point3d, Ray, Vector2f, Vector3d, Vector3f};
 
@@ -24,9 +27,6 @@ impl Scene {
     }
 
     fn sample_env(&self, ray: &Ray) -> f32 {
-        // let rot_inv = self.camera.transform.rotation.inverse().cast();
-        // let ray_world = rot_inv * ray.direction;
-
         let ray_world = self
             .camera
             .transform
@@ -36,8 +36,7 @@ impl Scene {
         let hdri_uv = equirectangular(ray_world);
         let val = self.env_map.sample_nearest(hdri_uv);
 
-        val
-        // ray_world.z
+        ray_world.y
     }
 
     pub fn sample(&self, ray: &Ray, max_bounces: u32) -> f32 {
@@ -55,17 +54,19 @@ impl Scene {
             let (alpha, beta) = tri.barycentric(new_origin);
 
             let tri_normals = &bvh.normals[tri_idx];
-            // let normal = (tri_normals.0 + tri_normals.1 + tri_normals.2) / 3.0;
             let normal = tri_normals.0 * (1.0 - alpha - beta)
                 + tri_normals.1 * alpha
                 + tri_normals.2 * beta;
 
             // specular reflection
-            let new_dir = ray.direction - 2.0 * ray.direction.dot(&normal) * normal;
-            let new_ray = Ray::new(new_origin, new_dir);
+            // let new_dir = ray.direction - 2.0 * ray.direction.dot(&normal) * normal;
+            // let new_ray = Ray::new(new_origin, new_dir);
 
-            let brightness = self.sample(&new_ray, max_bounces - 1);
-            brightness
+            // diffuse reflection
+            let dir = normal + rand_direction();
+            let ray = Ray::new(new_origin, dir);
+
+            self.sample(&ray, max_bounces - 1)
         } else {
             self.sample_env(ray)
         }

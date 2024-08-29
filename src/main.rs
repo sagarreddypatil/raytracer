@@ -2,15 +2,18 @@ mod camera;
 mod geom;
 mod objfile;
 mod render;
+mod rng;
 mod scene;
 mod texture;
+mod tonemapping;
 mod types;
 
 use indicatif::{ProgressBar, ProgressIterator};
 use scene::Scene;
+use tonemapping::tonemap;
 use types::*;
 
-use std::f64::consts::PI;
+use std::{f64::consts::PI, path::Path};
 
 use anyhow::Result;
 use camera::{perspective, Camera, UP};
@@ -45,7 +48,7 @@ fn real_main() -> Result<()> {
     let mut object = objfile::load_obj("smooth-monkey.obj")?;
     object.transform = Transform::new(
         Point3d::new(0.0, 0.0, 0.0),
-        Quaternion::identity(),
+        Quaternion::from_euler_angles(0.0, 0.0, PI / 2.0),
         Vector3::new(1.0, 1.0, 1.0),
     );
     println!("{:?}", object);
@@ -89,16 +92,12 @@ fn real_main() -> Result<()> {
         .zip(hdri_b)
         .map(|((r, g), b)| 0.2126 * r + 0.7152 * g + 0.0722 * b);
 
-    let hdri_gray = DMatrix::from_iterator(
-        hdri_width,
-        hdri_height,
-        gray,
-    );
+    let hdri_gray = DMatrix::from_iterator(hdri_width, hdri_height, gray);
 
     println!("Loaded HDRI with resolution {}x{}", hdri_width, hdri_height);
 
-    let viewport_width = 1920;
-    let viewport_height = 1080;
+    let viewport_width = 1280;
+    let viewport_height = 720;
     let aspect = viewport_width as f32 / viewport_height as f32;
 
     let fov = rad(50.0);
@@ -106,7 +105,7 @@ fn real_main() -> Result<()> {
     let camera = Camera::new(
         viewport_width,
         viewport_height,
-        camera_transform(Point3d::new(-2.0, -3.0, 1.0)),
+        camera_transform(Point3d::new(2.5, 0.5, 1.0)),
         perspective(fov as f32, aspect),
     );
 
@@ -114,44 +113,26 @@ fn real_main() -> Result<()> {
 
     println!("Starting render");
 
-    // for i in 1..2 {
-    //     let wow = i as f64;
-    //     let wow = (wow / 4.0) - 5.0 + 1e-4;
-    //     let camera_transform = camera_transform(Point3d::new(0.0, wow, 2.0));
-    //     scene.camera.transform = camera_transform;
-
-    //     scene.build_bvh();
-    //     let fb = render::sample_once(&scene);
-
-    //     write_rgb_file(
-    //         &format!("output_{}.exr", i),
-    //         viewport_width,
-    //         viewport_height,
-    //         |x, y| {
-    //             let b = fb[(x, y)];
-    //             (b, b, b)
-    //         },
-    //     )?;
-    // }
-
     scene.build_bvh();
-    let samples = 16;
+    let samples = 64;
     let bar = ProgressBar::new(samples as u64);
-    let fb: DMatrix<_> = (0..samples).progress_with(bar).map(|_| {
-        render::sample_once(&scene)
-    }).sum();
 
-    let fb = fb / samples as f32;
+    let mut fb: DMatrix<_> = DMatrix::zeros(viewport_width, viewport_height);
+    for i in (0..samples).progress_with(bar) {
+        fb += render::sample_once(&scene);
 
-    write_rgb_file(
-        "output.exr",
-        viewport_width as usize,
-        viewport_height as usize,
-        |x, y| {
-            let b = fb[(x, y)];
-            (b, b, b)
-        },
-    )?;
+        write_rgb_file(
+            // "output.exr",
+            &format!("output{:04}.exr", i),
+            viewport_width as usize,
+            viewport_height as usize,
+            |x, y| {
+                let b = fb[(x, y)];
+                let b = b / (i + 1) as f32;
+                (b, b, b)
+            },
+        )?;
+    }
 
     Ok(())
 }
