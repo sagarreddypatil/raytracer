@@ -164,6 +164,46 @@ pub struct BvhScene {
     pub normals: Vec<(Vector3f, Vector3f, Vector3f)>,
 }
 
+// copy pasted from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+fn ray_triangle_intersection(ray: &Ray, a: Point3f, b: Point3f, c: Point3f) -> Option<f32> {
+    let origin = ray.origin;
+    let direction = ray.direction;
+
+    let e1 = b - a;
+    let e2 = c - a;
+
+    let ray_cross_e2 = direction.cross(&e2);
+    let det = e1.dot(&ray_cross_e2);
+
+    if det > -f32::EPSILON && det < f32::EPSILON {
+        return None; // This ray is parallel to this triangle.
+    }
+
+    let inv_det = 1.0 / det;
+    let s = origin - a;
+    let u = inv_det * s.dot(&ray_cross_e2);
+    if u < 0.0 || u > 1.0 {
+        return None;
+    }
+
+    let s_cross_e1 = s.cross(&e1);
+    let v = inv_det * direction.dot(&s_cross_e1);
+    if v < 0.0 || u + v > 1.0 {
+        return None;
+    }
+    // At this stage we can compute t to find out where the intersection point is on the line.
+    let t = inv_det * e2.dot(&s_cross_e1);
+
+    if t > f32::EPSILON {
+        // ray intersection
+        // let intersection_point = origin + direction * t;
+        return Some(t);
+    } else {
+        // This means that there is a line intersection but not a ray intersection.
+        return None;
+    }
+}
+
 impl BvhScene {
     pub fn new(
         mut triangles: Vec<BVHTriangle>,
@@ -184,12 +224,18 @@ impl BvhScene {
         let mut hit_idx = None;
 
         for triangle in hits.into_iter() {
-            let intersection = ray.intersects_triangle(&triangle.a, &triangle.b, &triangle.c);
-            if intersection.distance.is_finite() && intersection.distance < min_t {
-                min_t = intersection.distance;
+            // let intersection = ray.intersects_triangle(&triangle.a, &triangle.b, &triangle.c);
+            // if intersection.distance.is_finite() && intersection.distance < min_t {
+            //     min_t = intersection.distance;
 
-                let i = triangle.arr_index;
-                hit_idx = Some(i);
+            let distance = ray_triangle_intersection(ray, triangle.a, triangle.b, triangle.c);
+            if let Some(t) = distance {
+                if t < min_t {
+                    min_t = t;
+
+                    let i = triangle.arr_index;
+                    hit_idx = Some(i);
+                }
             }
         }
 

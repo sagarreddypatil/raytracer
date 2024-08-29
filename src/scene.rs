@@ -1,9 +1,13 @@
+use std::f32::consts::PI;
+use std::f32::EPSILON;
+
 use nalgebra::DMatrix;
 
 use crate::camera::Camera;
 use crate::geom::{normalize, BVHTriangle, BvhScene, Object};
-use crate::rng::rand_direction;
-use crate::{Matrix4f, Ray, Vector3f};
+use crate::rng::{rand_direction, rand_hemisphere};
+use crate::texture::{equirectangular, Texture};
+use crate::{rad, Matrix4f, Ray, Vector3f};
 
 pub struct Scene {
     pub camera: Camera,
@@ -30,10 +34,27 @@ impl Scene {
             .matrix_f
             .transform_vector(&ray.direction);
 
-        // let hdri_uv = equirectangular(ray_world);
-        // let val = self.env_map.sample_nearest(hdri_uv);
+        let hdri_uv = equirectangular(ray_world);
+        let val = self.env_map.sample_linear(hdri_uv);
 
-        ray_world.y
+        val
+        // 0.5
+
+        // make a sun disc
+        // let sun_dir = Vector3f::new(0.0, 1.0, 0.5).normalize();
+        // let sun_intensity = 5.0;
+
+        // let cos = sun_dir.dot(&ray_world);
+        // let angle = cos.acos();
+
+        // let sun_size_deg = 45.0;
+        // let sun_size = sun_size_deg * PI / 180.0;
+
+        // if angle < sun_size {
+        //     sun_intensity
+        // } else {
+        //     0.0
+        // }
     }
 
     pub fn sample(&self, ray: &Ray, max_bounces: u32) -> f32 {
@@ -54,20 +75,24 @@ impl Scene {
             let normal =
                 tri_normals.0 * (1.0 - alpha - beta) + tri_normals.1 * alpha + tri_normals.2 * beta;
 
+            if ray.direction.dot(&normal) > 0.0 {
+                return 0.0;
+            }
+
             // specular reflection
-            // let new_dir = ray.direction - 2.0 * ray.direction.dot(&normal) * normal;
-            // let new_ray = Ray::new(new_origin, new_dir);
+            // let dir = ray.direction - 2.0 * ray.direction.dot(&normal) * normal;
+            // let ray = Ray::new(new_origin, dir);
 
             // diffuse reflection
             let dir = normalize(normal + rand_direction());
-            // let ray = Ray::new(new_origin, dir);
             let ray = Ray {
-                origin: new_origin,
+                origin: new_origin + dir,
                 direction: dir,
                 inv_direction: Vector3f::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z),
             };
 
             self.sample(&ray, max_bounces - 1)
+
         } else {
             self.sample_env(ray)
         }

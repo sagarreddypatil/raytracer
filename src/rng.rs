@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{geom::normalize, Vector3f};
+use crate::{geom::normalize, Vector2f, Vector3f};
 
 static mut SEED: u32 = 0;
 
@@ -14,6 +14,13 @@ pub fn rand() -> u32 {
 pub fn rand_f32() -> f32 {
     let x: u32 = rand();
     x as f32 / u32::MAX as f32
+}
+
+pub fn rand_circle() -> Vector2f {
+    let theta = 2.0 * PI * rand_f32();
+    let rho = rand_f32().sqrt();
+
+    Vector2f::new(rho * theta.cos(), rho * theta.sin())
 }
 
 pub fn rand_norm_f32() -> f32 {
@@ -30,6 +37,19 @@ pub fn rand_direction() -> Vector3f {
 
     // Vector3f::new(x, y, z).normalize()
     normalize(Vector3f::new(x, y, z))
+}
+
+pub fn rand_hemisphere(normal: Vector3f) -> Vector3f {
+    let mut dir = rand_direction();
+    while dir.norm() > 1.0 {
+        dir = rand_direction();
+    }
+
+    if dir.dot(&normal) < 0.0 {
+        -dir
+    } else {
+        dir
+    }
 }
 
 // const MIN: i32 = -2147483648;

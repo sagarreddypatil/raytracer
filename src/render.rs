@@ -1,6 +1,6 @@
 use nalgebra::{DMatrix, Point3};
 
-use crate::rng::rand_f32;
+use crate::rng::{rand_circle, rand_f32};
 use crate::scene::Scene;
 
 use crate::{Point3f, Ray};
@@ -23,8 +23,9 @@ pub fn sample_once(scene: &Scene) -> DMatrix<f32> {
         let x = x as f32;
         let y = y as f32;
 
-        let x = x + (1.0 * rand_f32() - 0.5);
-        let y = y + (1.0 * rand_f32() - 0.5);
+        let jitter = rand_circle();
+        let x = x + jitter.x;
+        let y = y + jitter.y;
 
         let ndc_x = (2.0 * x) / viewport_width - 1.0;
         let ndc_y = 1.0 - (2.0 * y) / viewport_height;
@@ -41,7 +42,7 @@ pub fn sample_once(scene: &Scene) -> DMatrix<f32> {
 
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), ray_dir);
 
-        let b = scene.sample(&ray, 2);
+        let b = scene.sample(&ray, 4);
         b
     }).collect();
 
