@@ -3,11 +3,12 @@ use std::f32::EPSILON;
 
 use nalgebra::DMatrix;
 
+use crate::bsdf::{Glossy, Lambertian, BSDF, UP};
 use crate::camera::Camera;
 use crate::geom::{normalize, BVHTriangle, BvhScene, Object};
 use crate::rng::{rand_direction, rand_hemisphere};
 use crate::texture::{equirectangular, Texture};
-use crate::{rad, Matrix4f, Ray, Vector3f};
+use crate::{bsdf, rad, Matrix3f, Matrix4f, Ray, Vector3f};
 
 pub struct Scene {
     pub camera: Camera,
@@ -15,6 +16,10 @@ pub struct Scene {
     pub env_map: DMatrix<f32>,
 
     pub bvh: Option<BvhScene>,
+}
+
+fn close_to_zero(val: f32) -> bool {
+    val.abs() < EPSILON
 }
 
 impl Scene {
@@ -34,11 +39,13 @@ impl Scene {
             .matrix_f
             .transform_vector(&ray.direction);
 
-        let hdri_uv = equirectangular(ray_world);
-        let val = self.env_map.sample_linear(hdri_uv);
+        // let hdri_uv = equirectangular(ray_world);
+        // let val = self.env_map.sample_linear(hdri_uv);
 
-        val
+        // val
         // 0.5
+
+        ray_world.y.max(0.0)
 
         // make a sun disc
         // let sun_dir = Vector3f::new(0.0, 1.0, 0.5).normalize();
@@ -75,24 +82,76 @@ impl Scene {
             let normal =
                 tri_normals.0 * (1.0 - alpha - beta) + tri_normals.1 * alpha + tri_normals.2 * beta;
 
-            if ray.direction.dot(&normal) > 0.0 {
-                return 0.0;
-            }
+            assert!(normal.norm() - 1.0 < 1e-4);
+
+            let basis_z = normal.normalize();
+            let basis_y = Vector3f::new(1.0, 0.0, 0.0).cross(&basis_z).normalize();
+            let basis_x = basis_y.cross(&basis_z).normalize();
+
+            let from_normal = Matrix3f::from_columns(&[basis_x, basis_y, basis_z]);
+            let to_normal = from_normal.transpose();
+
+            // ray.direction.z
 
             // specular reflection
             // let dir = ray.direction - 2.0 * ray.direction.dot(&normal) * normal;
             // let ray = Ray::new(new_origin, dir);
 
+            if ray.direction.dot(&normal) > 0.0 {
+                // backface culling
+                return 0.0;
+            }
+
             // diffuse reflection
-            let dir = normalize(normal + rand_direction());
+            // let dir = normalize(normal + rand_direction());
+            // let ray = Ray {
+            //     origin: new_origin + dir * 1e-4,
+            //     direction: dir,
+            //     inv_direction: Vector3f::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z),
+            // };
+
+            // self.sample(&ray, max_bounces - 1)
+
+            // bsdf based rendering
+            // let bsdf = Lambertian { albedo: 0.5 };
+            let bsdf = Glossy {};
+
+            // enter normal space
+            let reflected = to_normal * ray.direction;
+            let incedent = bsdf.sample(1.0, reflected);
+
+            let dot_component = incedent.dot(&UP); // dot product w/ normal in rendering equation
+            let pdf = bsdf.pdf(1.0, incedent, reflected);
+            let value = bsdf.value(1.0, incedent, reflected);
+
+            if dot_component <= EPSILON {
+                // this ray contributes nothing
+                return 0.0;
+            }
+
+            let dir = normalize(from_normal * incedent);
+            // leave normal space
+
             let ray = Ray {
-                origin: new_origin + dir,
+                origin: new_origin + dir * 1e-4,
                 direction: dir,
                 inv_direction: Vector3f::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z),
             };
 
-            self.sample(&ray, max_bounces - 1)
+            // L component of rendering equation
+            let output = self.sample(&ray, max_bounces - 1);
 
+            // final rendering equation f * L * (dot) / pdf
+            let coeff = if close_to_zero(value) && close_to_zero(pdf) {
+                // this means that pdf is zero everywhere except at one point (like in the case of
+                // glossy bsdfs) so we can just return the value at that point
+
+                1.0
+            } else {
+                dot_component * value / pdf
+            };
+
+            output * coeff
         } else {
             self.sample_env(ray)
         }

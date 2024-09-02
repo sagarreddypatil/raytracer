@@ -87,9 +87,9 @@ impl Transform {
 
 #[derive(Debug, Clone)]
 pub struct BVHTriangle {
-    a: Point3f,
-    b: Point3f,
-    c: Point3f,
+    pub a: Point3f,
+    pub b: Point3f,
+    pub c: Point3f,
 
     aabb: Aabb<f32, 3>,
     node_index: usize,

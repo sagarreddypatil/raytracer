@@ -1,3 +1,4 @@
+mod bsdf;
 mod camera;
 mod geom;
 mod objfile;
@@ -37,7 +38,6 @@ fn camera_transform(pos: Point3d) -> Transform {
     Transform::new(
         pos,
         Quaternion::look_at_rh(&look_at, &UP),
-        // Quaternion::from_euler_angles(0.0, rad(45.0), 0.0),
         Vector3::new(1.0, 1.0, 1.0),
     )
 }

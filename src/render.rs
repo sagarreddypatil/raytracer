@@ -1,9 +1,10 @@
 use nalgebra::{DMatrix, Point3};
 
+use crate::geom::normalize;
 use crate::rng::{rand_circle, rand_f32};
 use crate::scene::Scene;
 
-use crate::{Point3f, Ray};
+use crate::{Point3f, Ray, Vector3f};
 
 use rayon::prelude::*;
 
@@ -40,9 +41,16 @@ pub fn sample_once(scene: &Scene) -> DMatrix<f32> {
         let ray_dir = wow.transform_vector(&ray_dir);
         let ray_dir = wow.transform_vector(&ray_dir);
 
-        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), ray_dir);
+        let ray_dir = normalize(ray_dir);
 
-        let b = scene.sample(&ray, 4);
+        let ray_dir_inv = Vector3f::new(1.0 / ray_dir.x, 1.0 / ray_dir.y, 1.0 / ray_dir.z);
+        let ray = Ray {
+            origin: Point3::new(0.0, 0.0, 0.0),
+            direction: ray_dir,
+            inv_direction: ray_dir_inv,
+        };
+
+        let b = scene.sample(&ray, 8);
         b
     }).collect();
 

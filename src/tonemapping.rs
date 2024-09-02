@@ -11,5 +11,6 @@ pub fn aces_filmic(x: f32) -> f32 {
 }
 
 pub fn tonemap(brightness: f32) -> f32 {
-    aces_filmic(brightness)
+    // aces_filmic(brightness)
+    brightness
 }
