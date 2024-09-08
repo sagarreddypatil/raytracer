@@ -65,7 +65,7 @@ fn real_main() -> Result<()> {
         .all_layers()
         .all_attributes()
         .on_progress(|_| {})
-        .from_file("hdri-srgb.exr")?;
+        .from_file("hdri.exr")?;
 
     let hdri_layers = hdri.layer_data;
     let hdri = &hdri_layers[0];
@@ -117,7 +117,7 @@ fn real_main() -> Result<()> {
     println!("Starting render");
 
     scene.build_bvh();
-    let samples = 32;
+    let samples = 512;
     let bar = ProgressBar::new(samples as u64);
 
     let mut fb: DMatrix<_> = DMatrix::zeros(viewport_width, viewport_height);

@@ -82,7 +82,7 @@ impl Scene {
             let normal =
                 tri_normals.0 * (1.0 - alpha - beta) + tri_normals.1 * alpha + tri_normals.2 * beta;
 
-            assert!(normal.norm() - 1.0 < 1e-4);
+            // assert!(normal.norm() - 1.0 < 1e-4);
 
             let basis_z = normal.normalize();
             let basis_y = Vector3f::new(1.0, 0.0, 0.0).cross(&basis_z).normalize();
@@ -114,7 +114,7 @@ impl Scene {
 
             // bsdf based rendering
             // let bsdf = Lambertian { albedo: 0.5 };
-            let bsdf = Glossy {};
+            let bsdf = Lambertian { albedo: 0.9 };
 
             // enter normal space
             let reflected = to_normal * ray.direction;
