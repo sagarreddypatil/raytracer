@@ -8,12 +8,12 @@ use crate::camera::Camera;
 use crate::geom::{normalize, BVHTriangle, BvhScene, Object};
 use crate::rng::{rand_direction, rand_hemisphere};
 use crate::texture::{equirectangular, Texture};
-use crate::{bsdf, rad, Matrix3f, Matrix4f, Ray, Vector3f};
+use crate::{bsdf, rad, Color, Matrix3f, Matrix4f, Ray, Vector3f};
 
 pub struct Scene {
     pub camera: Camera,
     pub objects: Vec<Object>,
-    pub env_map: DMatrix<f32>,
+    pub env_map: DMatrix<Color>,
 
     pub bvh: Option<BvhScene>,
 }
@@ -23,7 +23,7 @@ fn close_to_zero(val: f32) -> bool {
 }
 
 impl Scene {
-    pub fn new(camera: Camera, objects: Vec<Object>, env_map: DMatrix<f32>) -> Self {
+    pub fn new(camera: Camera, objects: Vec<Object>, env_map: DMatrix<Color>) -> Self {
         Self {
             camera,
             objects,
@@ -32,20 +32,20 @@ impl Scene {
         }
     }
 
-    fn sample_env(&self, ray: &Ray) -> f32 {
+    fn sample_env(&self, ray: &Ray) -> Color {
         let ray_world = self
             .camera
             .transform
             .matrix_f
             .transform_vector(&ray.direction);
 
-        // let hdri_uv = equirectangular(ray_world);
-        // let val = self.env_map.sample_linear(hdri_uv);
+        let hdri_uv = equirectangular(ray_world);
+        let val = self.env_map.sample_linear(hdri_uv);
 
-        // val
+        val
         // 0.5
 
-        ray_world.y.max(0.0)
+        // ray_world.y.max(0.0)
 
         // make a sun disc
         // let sun_dir = Vector3f::new(0.0, 1.0, 0.5).normalize();
@@ -64,12 +64,12 @@ impl Scene {
         // }
     }
 
-    pub fn sample(&self, ray: &Ray, max_bounces: u32) -> f32 {
+    pub fn sample(&self, ray: &Ray, max_bounces: u32) -> Color {
         assert!(self.bvh.is_some());
         let bvh = self.bvh.as_ref().unwrap();
 
         if max_bounces == 0 {
-            return 0.0;
+            return Color::zeros();
         }
 
         if let Some((dist, tri_idx)) = bvh.intersects(ray) {
@@ -99,7 +99,7 @@ impl Scene {
 
             if ray.direction.dot(&normal) > 0.0 {
                 // backface culling
-                return 0.0;
+                return Color::zeros();
             }
 
             // diffuse reflection
@@ -118,15 +118,15 @@ impl Scene {
 
             // enter normal space
             let reflected = to_normal * ray.direction;
-            let incedent = bsdf.sample(1.0, reflected);
+            let incedent = bsdf.sample(reflected);
 
             let dot_component = incedent.dot(&UP); // dot product w/ normal in rendering equation
-            let pdf = bsdf.pdf(1.0, incedent, reflected);
-            let value = bsdf.value(1.0, incedent, reflected);
+            let pdf = bsdf.pdf(incedent, reflected);
+            let value = bsdf.value(incedent, reflected);
 
             if dot_component <= EPSILON {
                 // this ray contributes nothing
-                return 0.0;
+                return Color::zeros();
             }
 
             let dir = normalize(from_normal * incedent);

@@ -6,13 +6,14 @@ mod render;
 mod rng;
 mod scene;
 mod texture;
-mod tonemapping;
+mod color;
 mod types;
 
 use exr::prelude::{write_rgb_file, ReadChannels, ReadLayers};
 use indicatif::{ProgressBar, ProgressIterator};
 use scene::Scene;
-use tonemapping::tonemap;
+use color::tonemap;
+use color::Color;
 use types::*;
 
 use std::{f64::consts::PI, time::Instant};
@@ -64,7 +65,7 @@ fn real_main() -> Result<()> {
         .all_layers()
         .all_attributes()
         .on_progress(|_| {})
-        .from_file("hdri.exr")?;
+        .from_file("hdri-srgb.exr")?;
 
     let hdri_layers = hdri.layer_data;
     let hdri = &hdri_layers[0];
@@ -85,12 +86,12 @@ fn real_main() -> Result<()> {
     let hdri_g = hdri_channel("G").sample_data.values_as_f32();
     let hdri_b = hdri_channel("B").sample_data.values_as_f32();
 
-    let gray = hdri_r
+    let rgb = hdri_r
         .zip(hdri_g)
         .zip(hdri_b)
-        .map(|((r, g), b)| 0.2126 * r + 0.7152 * g + 0.0722 * b);
+        .map(|((r, g), b)| Color::new(r, g, b));
 
-    let hdri_gray = DMatrix::from_iterator(hdri_width, hdri_height, gray);
+    let hdri_rgb = DMatrix::from_iterator(hdri_width, hdri_height, rgb);
 
     // let hdri_width = 2048;
     // let hdri_height = 1024;
@@ -111,7 +112,7 @@ fn real_main() -> Result<()> {
         perspective(fov as f32, aspect),
     );
 
-    let mut scene = Scene::new(camera, vec![object], hdri_gray);
+    let mut scene = Scene::new(camera, vec![object], hdri_rgb);
 
     println!("Starting render");
 
@@ -140,11 +141,11 @@ fn real_main() -> Result<()> {
         viewport_width as usize,
         viewport_height as usize,
         |x, y| {
-            let b = fb[(x, y)];
-            let b = b / samples as f32;
+            let rgb = fb[(x, y)];
+            let rgb = rgb / samples as f32;
 
-            let b = tonemap(b);
-            (b, b, b)
+            let rgb = tonemap(rgb);
+            (rgb.x, rgb.y, rgb.z)
         },
     )?;
 

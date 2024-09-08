@@ -1,4 +1,4 @@
 #!/bin/sh
 
 cargo build
-mv target/debug/spectral-raytracer target/debug/spectral-raytracer-old
+mv target/debug/raytracer target/debug/raytracer-old

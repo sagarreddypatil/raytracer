@@ -448,6 +448,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "raytracer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bvh",
+ "exr",
+ "indicatif",
+ "nalgebra",
+ "rayon",
+]
+
+[[package]]
 name = "safe_arch"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -506,18 +518,6 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
-
-[[package]]
-name = "spectral-raytracer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bvh",
- "exr",
- "indicatif",
- "nalgebra",
- "rayon",
-]
 
 [[package]]
 name = "spin"

@@ -1,14 +1,14 @@
 use nalgebra::DMatrix;
 use std::f32::consts::PI;
 
-use crate::{Vector2f, Vector3f};
+use crate::{Color, Vector2f, Vector3f};
 
 pub trait Texture {
-    fn sample_linear(&self, uv: Vector2f) -> f32;
-    fn sample_nearest(&self, uv: Vector2f) -> f32;
+    fn sample_linear(&self, uv: Vector2f) -> Color;
+    fn sample_nearest(&self, uv: Vector2f) -> Color;
 }
 
-fn idx_float(mat: &DMatrix<f32>, row: f32, col: f32) -> f32 {
+fn idx_float(mat: &DMatrix<Color>, row: f32, col: f32) -> Color {
     let row = (row as usize).min(mat.nrows() - 1);
     let col = (col as usize).min(mat.ncols() - 1);
 
@@ -28,8 +28,8 @@ fn bound_uv(uv: Vector2f) -> Vector2f {
     Vector2f::new(x, y)
 }
 
-impl Texture for DMatrix<f32> {
-    fn sample_linear(&self, uv: Vector2f) -> f32 {
+impl Texture for DMatrix<Color> {
+    fn sample_linear(&self, uv: Vector2f) -> Color {
         let uv = bound_uv(uv);
 
         let x = uv.x * self.nrows() as f32;
@@ -49,7 +49,7 @@ impl Texture for DMatrix<f32> {
         top * (1.0 - y) + bottom * y
     }
 
-    fn sample_nearest(&self, uv: Vector2f) -> f32 {
+    fn sample_nearest(&self, uv: Vector2f) -> Color {
         let uv = bound_uv(uv);
 
         let x = (uv.x * self.nrows() as f32).round();

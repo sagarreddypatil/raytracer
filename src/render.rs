@@ -4,11 +4,11 @@ use crate::geom::normalize;
 use crate::rng::{rand_circle, rand_f32};
 use crate::scene::Scene;
 
-use crate::{Point3f, Ray, Vector3f};
+use crate::{Color, Point3f, Ray, Vector3f};
 
 use rayon::prelude::*;
 
-pub fn sample_once(scene: &Scene) -> DMatrix<f32> {
+pub fn sample_once(scene: &Scene) -> DMatrix<Color> {
     let camera = &scene.camera;
     let n_pixels = camera.width * camera.height;
 
