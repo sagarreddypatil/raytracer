@@ -5,7 +5,7 @@ use nalgebra::DMatrix;
 
 use crate::bsdf::{Glossy, Lambertian, BSDF, UP};
 use crate::camera::Camera;
-use crate::geom::{normalize, BVHTriangle, BvhScene, Object};
+use crate::geom::{normalize, BVHTriangle, BvhScene, Material, Object};
 use crate::rng::{rand_direction, rand_hemisphere};
 use crate::texture::{equirectangular, Texture};
 use crate::{bsdf, rad, Color, Matrix3f, Matrix4f, Ray, Vector3f};
@@ -75,6 +75,7 @@ impl Scene {
         if let Some((dist, tri_idx)) = bvh.intersects(ray) {
             let new_origin = ray.origin + ray.direction * dist;
 
+            let material = &bvh.materials[tri_idx];
             let tri = &bvh.triangles[tri_idx];
             let (alpha, beta) = tri.barycentric(new_origin);
 
@@ -113,8 +114,12 @@ impl Scene {
             // self.sample(&ray, max_bounces - 1)
 
             // bsdf based rendering
-            // let bsdf = Lambertian { albedo: 0.5 };
-            let bsdf = Lambertian { albedo: 0.9 };
+            let bsdf: Box<dyn BSDF> = match material {
+                Material::Diffuse(albedo) => Box::new(Lambertian { albedo: *albedo }),
+                Material::Glossy => Box::new(Glossy {}),
+            };
+            // let bsdf = Glossy {};
+            // let bsdf = Lambertian { albedo: 0.9 };
 
             // enter normal space
             let reflected = to_normal * ray.direction;
@@ -166,6 +171,7 @@ impl Scene {
 
         let mut triangles = Vec::new();
         let mut normals = Vec::new();
+        let mut materials = Vec::new();
 
         for object in &self.objects {
             let object_to_world = object.transform.matrix;
@@ -210,8 +216,12 @@ impl Scene {
 
                 normals.push((a, b, c));
             }
+
+            for triangle in &object.mesh.triangles {
+                materials.push(object.material);
+            }
         }
 
-        BvhScene::new(triangles, normals)
+        BvhScene::new(triangles, normals, materials)
     }
 }

@@ -44,18 +44,18 @@ fn camera_transform(pos: Point3d) -> Transform {
 }
 
 fn real_main() -> Result<()> {
-    let mut object = objfile::load_obj("smooth-monkey.obj")?;
-    object.transform = Transform::new(
-        Point3d::new(0.0, 0.0, 0.0),
+    let mut object1 = objfile::load_obj("sphere.obj", geom::Material::Glossy)?;
+    object1.transform = Transform::new(
+        Point3d::new(0.0, 1.0, 0.0),
         Quaternion::from_euler_angles(0.0, 0.0, PI / 2.0),
-        Vector3::new(1.0, 1.0, 1.0),
+        Vector3::new(0.8, 0.8, 0.8),
     );
-    println!("{:?}", object);
 
-    println!(
-        "Loaded object with {} vertices and {} triangles",
-        object.mesh.vertices.len(),
-        object.mesh.triangles.len()
+    let mut object2 = objfile::load_obj("smooth-monkey.obj", geom::Material::Glossy)?;
+    object2.transform = Transform::new(
+        Point3d::new(0.0, -1.0, 0.0),
+        Quaternion::from_euler_angles(0.0, 0.0, PI / 2.0),
+        Vector3::new(0.8, 0.8, 0.8),
     );
 
     let hdri = exr::image::read::read()
@@ -99,8 +99,8 @@ fn real_main() -> Result<()> {
 
     println!("Loaded HDRI with resolution {}x{}", hdri_width, hdri_height);
 
-    let viewport_width = 1280;
-    let viewport_height = 720;
+    let viewport_width = 1920;
+    let viewport_height = 1080;
     let aspect = viewport_width as f32 / viewport_height as f32;
 
     let fov = rad(50.0);
@@ -112,12 +112,12 @@ fn real_main() -> Result<()> {
         perspective(fov as f32, aspect),
     );
 
-    let mut scene = Scene::new(camera, vec![object], hdri_rgb);
+    let mut scene = Scene::new(camera, vec![object1, object2], hdri_rgb);
 
     println!("Starting render");
 
     scene.build_bvh();
-    let samples = 512;
+    let samples = 16;
     let bar = ProgressBar::new(samples as u64);
 
     let mut fb: DMatrix<_> = DMatrix::zeros(viewport_width, viewport_height);

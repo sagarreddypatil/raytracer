@@ -50,7 +50,7 @@ pub fn sample_once(scene: &Scene) -> DMatrix<Color> {
             inv_direction: ray_dir_inv,
         };
 
-        let b = scene.sample(&ray, 8);
+        let b = scene.sample(&ray, 16);
         b
     }).collect();
 

@@ -11,6 +11,7 @@ use crate::{Affine, Matrix4d, Matrix4f, Point3d, Point3f, Quaternion, Ray, Vecto
 pub struct Object {
     pub transform: Transform,
     pub mesh: Mesh,
+    pub material: Material,
 }
 
 impl Debug for Object {
@@ -158,10 +159,17 @@ impl BHShape<f32, 3> for BVHTriangle {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Material {
+    Diffuse(f32),
+    Glossy,
+}
+
 pub struct BvhScene {
     bvh: Bvh<f32, 3>,
     pub triangles: Vec<BVHTriangle>,
     pub normals: Vec<(Vector3f, Vector3f, Vector3f)>,
+    pub materials: Vec<Material>,
 }
 
 // copy pasted from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
@@ -208,6 +216,7 @@ impl BvhScene {
     pub fn new(
         mut triangles: Vec<BVHTriangle>,
         normals: Vec<(Vector3f, Vector3f, Vector3f)>,
+        materials: Vec<Material>,
     ) -> Self {
         let bvh = Bvh::build(&mut triangles);
 
@@ -215,6 +224,7 @@ impl BvhScene {
             bvh,
             triangles,
             normals,
+            materials,
         }
     }
 

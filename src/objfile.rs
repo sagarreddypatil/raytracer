@@ -3,12 +3,12 @@ use std::{
     io::{BufRead, BufReader, Write},
 };
 
-use crate::geom::{Mesh, Object, Transform};
+use crate::geom::{Material, Mesh, Object, Transform};
 use nalgebra::{Point3, Vector3};
 
 // use crate::geom::Scene;
 
-pub fn load_obj(path: &str) -> anyhow::Result<Object> {
+pub fn load_obj(path: &str, material: Material) -> anyhow::Result<Object> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
 
@@ -71,6 +71,7 @@ pub fn load_obj(path: &str) -> anyhow::Result<Object> {
             normals,
             normal_triangles,
         },
+        material,
     })
 }
 
