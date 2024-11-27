@@ -51,7 +51,7 @@ fn real_main() -> Result<()> {
         Vector3::new(0.8, 0.8, 0.8),
     );
 
-    let mut object2 = objfile::load_obj("smooth-monkey.obj", geom::Material::Glossy)?;
+    let mut object2 = objfile::load_obj("smooth-monkey.obj", geom::Material::Diffuse(1.0))?;
     object2.transform = Transform::new(
         Point3d::new(0.0, -1.0, 0.0),
         Quaternion::from_euler_angles(0.0, 0.0, PI / 2.0),
@@ -117,7 +117,7 @@ fn real_main() -> Result<()> {
     println!("Starting render");
 
     scene.build_bvh();
-    let samples = 16;
+    let samples = 1024;
     let bar = ProgressBar::new(samples as u64);
 
     let mut fb: DMatrix<_> = DMatrix::zeros(viewport_width, viewport_height);
